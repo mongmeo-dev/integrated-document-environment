@@ -3,4 +3,5 @@ _.file = ".env"
 
 [tools]
 node = "24"
+poetry = "2"
 python = "3.14"
