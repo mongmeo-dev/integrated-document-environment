@@ -20,3 +20,13 @@
 ## Dependency Rule
 
 * 사용하는 도구나 의존성의 버전은 `latest`를 사용하지 않고 명시적인 최신 또는 LTS 버전을 사용한다.
+
+## API Path Rule
+
+* API Path는 `/api/v(version)` prefix를 가진다.
+    * e.g. `/api/v1/health`
+
+## Web Path Rule
+
+* 각 페이지는 각각의 path를 가진다
+* 절대 하나의 path에 여러 기능을 분기로 렌더링하지 않눈다.
