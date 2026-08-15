@@ -1,0 +1,22 @@
+# Integrated Document Environment
+
+## Common Task Rule
+
+* 모호한 부분이나 정보가 부족한 부분이 있다면 절대 추정하지 않고 사용자에게 질의한다.
+* 사용자와의 인터렉션이나 사고과정 출력은 한국어 경어체로 한다.
+* 작업 중 사용자의 명시적인 언급이나 암시적으로 프로젝트 전역에 적용해야 하는 규칙을 발견하면 이 문서에 추가한다.
+
+## Git Commit Rule
+
+* 커밋에 Co Author를 포함하지 않는다.
+* 커밋 메세지는 한글로 작성한다.
+* 커밋은 반드시 기능단위로 분리하여 원자적으로 커밋한다.
+
+## Git Worktree Rule
+
+* Worktree를 만들어 작업할 때는 반드시 `.worktrees` 디렉토리 아래에 생성한다.
+* Worktree를 생성하는 경우 git ignore된 `.env`를 worktree로 복사한다.
+
+## Dependency Rule
+
+* 사용하는 도구나 의존성의 버전은 `latest`를 사용하지 않고 명시적인 최신 또는 LTS 버전을 사용한다.
