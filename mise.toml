@@ -1,2 +1,6 @@
 [env]
 _.file = ".env"
+
+[tools]
+node = "24"
+python = "3.14"
