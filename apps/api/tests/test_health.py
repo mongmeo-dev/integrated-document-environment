@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from ide_api.main import app
+from ide_api.cmd.api import app
 
 
 def test_health() -> None:

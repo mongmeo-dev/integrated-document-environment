@@ -25,4 +25,4 @@ COPY src ./src
 USER app
 EXPOSE 8000
 
-CMD ["uvicorn", "ide_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "ide_api.cmd.api:app", "--host", "0.0.0.0", "--port", "8000"]

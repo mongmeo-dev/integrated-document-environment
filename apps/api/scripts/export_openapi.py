@@ -2,7 +2,7 @@ import argparse
 import json
 from pathlib import Path
 
-from ide_api.main import app
+from ide_api.cmd.api import app
 
 
 def parse_args() -> argparse.Namespace:

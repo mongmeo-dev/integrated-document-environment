@@ -12,7 +12,7 @@ run = "pnpm --dir apps/web dev"
 
 [tasks."dev:api"]
 description = "API 개발 서버를 실행합니다"
-run = "poetry -C apps/api run uvicorn ide_api.main:app --reload"
+run = "poetry -C apps/api run uvicorn ide_api.cmd.api:app --reload"
 
 [tasks.dev]
 description = "Web과 API 개발 서버를 함께 실행합니다"
