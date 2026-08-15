@@ -21,6 +21,10 @@
 
 * 사용하는 도구나 의존성의 버전은 `latest`를 사용하지 않고 명시적인 최신 또는 LTS 버전을 사용한다.
 
+## README Rule
+
+* `README.md`에 문서화된 기능, 기술 스택, 디렉토리 구조, 설정, 실행·검사·빌드·배포 방법이 변경되면 같은 작업에서 `README.md`를 반드시 함께 수정한다.
+
 ## API Path Rule
 
 * API Path는 `/api/v(version)` prefix를 가진다.
