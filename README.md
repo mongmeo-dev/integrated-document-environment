@@ -40,6 +40,8 @@ apps/
 docs/
   TECH_STACK.md        기술 스택과 설계 결정
   tasks/phase1_prd/    Phase1 요구사항과 원천 작업 문서
+design-system/
+  integrated-document-environment/  Web UI 디자인 시스템과 화면별 규칙
 ```
 
 ## 개발 환경
