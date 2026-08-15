@@ -5,3 +5,15 @@ _.file = ".env"
 node = "24"
 poetry = "2"
 python = "3.14"
+
+[tasks."dev:web"]
+description = "Web 개발 서버를 실행합니다"
+run = "pnpm --dir apps/web dev"
+
+[tasks."dev:api"]
+description = "API 개발 서버를 실행합니다"
+run = "poetry -C apps/api run uvicorn ide_api.main:app --reload"
+
+[tasks.dev]
+description = "Web과 API 개발 서버를 함께 실행합니다"
+depends = ["dev:web", "dev:api"]

@@ -95,16 +95,17 @@ docker compose ps
 
 ## 로컬 실행
 
-API를 실행합니다.
+Web과 API 개발 서버를 함께 실행합니다.
 
 ```bash
-mise exec -- poetry -C apps/api run uvicorn ide_api.main:app --reload
+mise run dev
 ```
 
-Web 개발 서버를 실행합니다.
+각 개발 서버만 실행할 수도 있습니다.
 
 ```bash
-pnpm --dir apps/web dev
+mise run dev:web
+mise run dev:api
 ```
 
 기본 주소는 다음과 같습니다.
