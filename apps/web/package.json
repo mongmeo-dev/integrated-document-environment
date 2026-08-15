@@ -1,0 +1,36 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "api:spec": "mise exec -- poetry -C ../api run python scripts/export_openapi.py --output ../web/openapi/openapi.json",
+    "api:generate": "pnpm run api:spec && openapi-generator-cli generate -c openapi-generator-config.json",
+    "api:check": "pnpm run api:generate && git diff --exit-code -- openapi/openapi.json src/api/generated",
+    "check": "pnpm run api:check && pnpm run lint && pnpm run typecheck"
+  },
+  "dependencies": {
+    "@chakra-ui/react": "^3.36.1",
+    "@emotion/react": "^11.14.0",
+    "@swc/helpers": "^0.5.23",
+    "@tanstack/react-query": "^5.101.4",
+    "axios": "^1.19.0",
+    "next": "16.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.2",
+    "@openapitools/openapi-generator-cli": "^2.40.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@11.20.0"
+}

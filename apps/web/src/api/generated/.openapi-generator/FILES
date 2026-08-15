@@ -1,0 +1,10 @@
+.gitignore
+.npmignore
+api.ts
+base.ts
+common.ts
+configuration.ts
+docs/HealthResponse.md
+docs/SystemApi.md
+git_push.sh
+index.ts
