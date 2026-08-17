@@ -7,9 +7,9 @@
 ---
 
 **Project:** Integrated Document Environment
-**Generated:** 2026-08-15 14:27:24
-**Category:** E-signature / Document Workflow
-**Design Dials:** Variance 4/10 (Balanced / Modern) | Motion 3/10 (Subtle) | Density 8/10 (Dense / Dashboard)
+**Generated:** 2026-08-15 18:39:16
+**Category:** Developer Tool / IDE
+**Design Dials:** Variance 4/10 (Balanced / Modern) | Motion 2/10 (Subtle) | Density 8/10 (Dense / Dashboard)
 
 ---
 
@@ -34,14 +34,14 @@
 
 ### Typography
 
-- **Heading Font:** EB Garamond
-- **Body Font:** Lato
-- **Mood:** legal, professional, traditional, trustworthy, formal, authoritative
-- **Google Fonts:** [EB Garamond + Lato](https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap)
+- **Heading Font:** JetBrains Mono
+- **Body Font:** IBM Plex Sans
+- **Mood:** technical, precise, calm, trustworthy, document-first
+- **Google Fonts:** [JetBrains Mono + IBM Plex Sans](https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap)
 
 **CSS Import:**
 ```css
-@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 ```
 
 ### Spacing Variables
@@ -161,44 +161,44 @@
 
 ## Style Guidelines
 
-**Style:** Soft UI Evolution
+**Style:** Technical Document Workbench
 
-**Keywords:** Evolved soft UI, better contrast, modern aesthetics, subtle depth, accessibility-focused, improved shadows, hybrid
+**Keywords:** Structured workspace, document-first, calm technical, split review, persistent context, high information clarity
 
-**Best For:** Modern enterprise apps, SaaS platforms, health/wellness, modern business tools, professional, hybrid
+**Best For:** Developer documentation, regulated document review, change-impact analysis, evidence verification
 
-**Key Effects:** Improved shadows (softer than flat, clearer than neumorphism), modern (200-300ms), focus visible, WCAG AA/AAA
+**Key Effects:** Stable pane boundaries, restrained elevation, semantic state colors, compact keyboard-friendly controls
 
 ### Page Pattern
 
-**Pattern Name:** Product Review/Ratings Focused
+**Pattern Name:** Three-Pane Document Workbench
 
-- **Conversion Strategy:** User-generated content builds trust. Show verified purchases. Filter by rating. Respond to negative reviews.
-- **CTA Placement:** After reviews summary + Buy button alongside reviews
-- **Section Order:** 1. Hero (product + aggregate rating), 2. Rating breakdown, 3. Individual reviews, 4. Buy/CTA
+- **Primary Workflow:** Navigate project documents, compare original and proposed content, resolve impact and evidence candidates.
+- **Primary Action Placement:** Document header beside the active change request.
+- **Pane Order:** 1. Project and document navigation, 2. Tabbed document comparison, 3. Change context and approval gates.
 
 ---
 
 ## Motion
 
-**Scroll Reveal** (Subtle) — Trigger: scroll (viewport enter) | Duration: 300-400ms | Easing: `power1.out`
+**State Transition** (Subtle) — Trigger: focus, selection, or state change | Duration: 150-200ms | Easing: `power1.out`
 
 ```js
-gsap.from(el, { opacity: 0, y: 12, duration: 0.35, ease: 'power1.out', scrollTrigger: { trigger: el, start: 'top 90%', toggleActions: 'play none none reverse' } });
+gsap.to(el, { backgroundColor: 'var(--state-active)', duration: 0.18, ease: 'power1.out' });
 ```
 
-**Framework notes:** Requires the ScrollTrigger plugin registered once via gsap.registerPlugin(ScrollTrigger)
+**Framework notes:** Prefer CSS transitions for routine controls; reserve GSAP for complex pane transitions.
 
-- ✅ Keep the y offset small (8-16px) so it reads as a fade, not a slide
-- ❌ Don't reveal below-the-fold content needed for SEO/crawlers as invisible-by-default without a no-JS fallback
-- ⚡ toggleActions 'play none none reverse' avoids re-triggering on every scroll direction change
+- ✅ Keep document geometry stable during state changes.
+- ❌ Do not animate pane dimensions while users are comparing content.
+- ⚡ Animate color and opacity rather than layout properties.
 
 ---
 
 ## Anti-Patterns (Do NOT Use)
 
-- ❌ Flat design without depth
-- ❌ Text-heavy pages
+- ❌ Literal imitation of VS Code or another existing IDE
+- ❌ Dashboard metric cards as the primary workspace
 
 ### Additional Forbidden Patterns
 
