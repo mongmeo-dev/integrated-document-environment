@@ -4,7 +4,9 @@
 
 이 시스템은 DOCX/PDF 편집기를 제공하지 않습니다. 원본과 외부 편집 결과를 수집하고, 서식 차이와 관련 문서·근거 후보를 검토한 뒤 사람이 최종 확정하는 흐름을 제공합니다.
 
-> 현재 저장소는 Phase1 구현을 위한 초기 애플리케이션과 개발 환경을 포함합니다. 전체 제품 요구사항은 [PRD](docs/tasks/phase1_prd/PRD.md), 기술 결정은 [기술 스택 문서](docs/TECH_STACK.md)를 참고하십시오.
+> 현재 저장소에는 Phase1 수직 슬라이스와 개발 환경이 포함됩니다. 전체 제품
+> 요구사항은 [PRD](docs/tasks/phase1_prd/PRD.md), 기술 결정은
+> [기술 스택 문서](docs/TECH_STACK.md)를 참고하십시오.
 
 ## 주요 원칙
 
@@ -24,9 +26,9 @@
 | 비동기 처리 | Celery, Redis |
 | 데이터베이스 | PostgreSQL, pgvector |
 | Web | Next.js static export, React, TypeScript |
-| UI 및 서버 상태 | Chakra UI, TanStack Query |
+| UI 및 상태 | Chakra UI provider, CSS Modules, TanStack Query |
 | API client | OpenAPI Generator `typescript-axios` |
-| AI | OpenAI Responses API, Structured Outputs, Embeddings API |
+| AI | OpenAI Responses API, Structured Outputs |
 | 파일 저장 | Naver Cloud Object Storage |
 | Python 도구 | Poetry, Ruff, pytest |
 | Web 도구 | pnpm, Biome, TypeScript compiler |
@@ -35,13 +37,15 @@
 
 ```text
 apps/
-  api/                 FastAPI 애플리케이션과 OpenAPI schema
-  web/                 Next.js 정적 Web 애플리케이션
+  api/                 FastAPI 도메인 API, migration, 통합 테스트
+  web/                 Next.js 정적 문서 워크벤치와 생성 client
 docs/
   TECH_STACK.md        기술 스택과 설계 결정
   tasks/phase1_prd/    Phase1 요구사항과 원천 작업 문서
 design-system/
   integrated-document-environment/  Web UI 디자인 시스템과 화면별 규칙
+fixture/
+  sample-docs/         등록·검증 통합 테스트용 실제 DOCX 문서
 ```
 
 ## 개발 환경
@@ -117,6 +121,20 @@ mise run dev:api
 - API 문서: <http://localhost:8000/docs>
 - 상태 확인: <http://localhost:8000/api/v1/health>
 
+### 내부 사용자 준비
+
+DB migration을 적용한 뒤 관리자가 내부 사용자 계정을 생성합니다. 외부 사용자
+self-signup은 제공하지 않습니다.
+
+```bash
+mise exec -- poetry -C apps/api run alembic upgrade head
+mise exec -- poetry -C apps/api run python -m ide_api.cmd.create_user \
+  --email developer@neudive.com \
+  --display-name "김개발"
+```
+
+비밀번호는 명령 실행 중 대화형으로 입력하며 DB에는 Argon2 hash만 저장됩니다.
+
 ## API 계약과 codegen
 
 FastAPI의 OpenAPI schema가 API 계약의 단일 기준입니다. Web의 DTO와 Axios client는 `typescript-axios` generator로 생성합니다.
@@ -125,7 +143,9 @@ FastAPI의 OpenAPI schema가 API 계약의 단일 기준입니다. Web의 DTO와
 pnpm --dir apps/web api:generate
 ```
 
-생성 파일은 `apps/web/src/api/generated`에 저장하며 직접 수정하지 않습니다. Web의 page와 component는 생성된 client 또는 Axios를 직접 호출하지 않고, 반드시 TanStack Query query/mutation으로 래핑하여 사용합니다.
+생성 파일은 `apps/web/src/api/generated`에 저장하며 직접 수정하지 않습니다. Web의
+client component는 `apps/web/src/api/client.ts`가 제공하는 인증 포함 생성 client를
+사용합니다.
 
 API 변경 후 다음 검사를 수행하면 schema와 생성물의 불일치를 확인할 수 있습니다.
 

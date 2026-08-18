@@ -1,0 +1,413 @@
+.app {
+  min-height: 100vh;
+  background: #f6f7f8;
+  color: #1f2933;
+}
+
+.skipLink {
+  position: fixed;
+  z-index: 10;
+  top: 0.5rem;
+  left: 0.5rem;
+  transform: translateY(-150%);
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.3rem;
+  background: #163f35;
+  color: #fff;
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 1.5rem;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.flowPanel,
+.auditPanel {
+  border: 1px solid #d8dde1;
+  border-radius: 0.65rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(28 39 49 / 5%);
+}
+
+.flowPanel {
+  padding: 1.75rem;
+}
+.auditPanel {
+  align-self: start;
+  padding: 1.4rem;
+}
+
+.heading,
+.stepSummary,
+.currentAction,
+.formActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  color: #55706a;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fixtureBadge {
+  display: inline-block;
+  padding: 0.1rem 0.38rem;
+  border-radius: 0.2rem;
+  background: #e9f2ef;
+  color: #16624c;
+  font-size: 0.68rem;
+  letter-spacing: normal;
+}
+
+.workspace h1,
+.workspace h2,
+.workspace p {
+  margin-top: 0;
+}
+.workspace h1 {
+  margin-bottom: 0.45rem;
+  font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+}
+.workspace h2 {
+  font-size: 1rem;
+}
+.heading > div:first-child > p:last-child,
+.auditPanel > p {
+  color: #58646e;
+}
+
+.workflowState {
+  min-width: 9rem;
+  padding: 0.8rem;
+  border-left: 3px solid #22745e;
+  background: #f1f7f4;
+}
+.workflowState strong,
+.workflowState span {
+  display: block;
+}
+.workflowState span {
+  margin-top: 0.2rem;
+  color: #58646e;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.loading,
+.error,
+.blocking {
+  margin: 1.25rem 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.4rem;
+}
+.loading {
+  background: #edf4f7;
+  color: #254c5f;
+}
+.error {
+  border: 1px solid #e5a2a2;
+  background: #fff1f1;
+  color: #9d2020;
+}
+.blocking {
+  border-left: 3px solid #c78b20;
+  background: #fff9ed;
+}
+.blocking h2 {
+  margin-bottom: 0.45rem;
+}
+.blocking ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: #4d514f;
+}
+.blocking li + li {
+  margin-top: 0.25rem;
+}
+
+.stepList,
+.auditList {
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 0.8rem;
+  padding-bottom: 1.15rem;
+}
+.step:not(:last-child)::before {
+  position: absolute;
+  top: 2.4rem;
+  bottom: 0;
+  left: 1rem;
+  width: 1px;
+  background: #c8d2cf;
+  content: "";
+}
+.sequence {
+  z-index: 1;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid #5a766e;
+  border-radius: 100%;
+  background: #fff;
+  color: #214c41;
+  font-weight: 700;
+}
+.stepBody {
+  min-width: 0;
+  padding: 0.2rem 0 0.6rem;
+  border-bottom: 1px solid #e4e8ea;
+}
+.stepSummary h2 {
+  margin: 0.25rem 0;
+  font-size: 1.05rem;
+}
+.stepSummary p:last-child,
+.completedAt {
+  margin-bottom: 0;
+  color: #5b6570;
+  font-size: 0.88rem;
+}
+.status {
+  display: inline-block;
+  margin-bottom: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+.completed {
+  color: #39715f;
+}
+.current {
+  color: #1763a5;
+}
+.pending {
+  color: #6d5d30;
+}
+
+.workspace button,
+.workspace input,
+.workspace textarea {
+  font: inherit;
+}
+.workspace button {
+  min-height: 2.25rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #52635f;
+  border-radius: 0.3rem;
+  background: #fff;
+  color: #24322f;
+  cursor: pointer;
+}
+.workspace button:hover:not(:disabled) {
+  border-color: #1d6652;
+  background: #edf6f2;
+}
+.workspace button:focus-visible,
+.workspace input:focus-visible,
+.workspace textarea:focus-visible {
+  outline: 3px solid #69aee2;
+  outline-offset: 2px;
+}
+.workspace button:disabled {
+  border-color: #c8cece;
+  background: #f1f3f3;
+  color: #7a8384;
+  cursor: not-allowed;
+}
+
+.editForm {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-top: 0.9rem;
+  padding: 1rem;
+  border: 1px solid #cdd9d5;
+  background: #f8fbfa;
+}
+.editForm label {
+  display: grid;
+  gap: 0.3rem;
+  color: #3c4d49;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+.editForm input,
+.editForm textarea {
+  min-width: 0;
+  padding: 0.45rem;
+  border: 1px solid #aebbb8;
+  border-radius: 0.25rem;
+  background: #fff;
+  color: #17211f;
+  font-weight: 400;
+}
+.editForm textarea {
+  min-height: 4rem;
+  resize: vertical;
+}
+.reason,
+.formActions {
+  grid-column: 1 / -1;
+}
+.formActions {
+  align-items: center;
+  color: #58646e;
+  font-size: 0.82rem;
+}
+.formActions button,
+.currentAction button {
+  border-color: #17624e;
+  background: #17624e;
+  color: #fff;
+}
+
+.currentAction {
+  align-items: center;
+  margin-top: 1.35rem;
+  padding: 1rem;
+  border: 1px solid #a8c9bd;
+  background: #edf7f2;
+}
+.currentAction p {
+  margin-bottom: 0.18rem;
+  color: #527167;
+  font-size: 0.78rem;
+}
+.currentAction span {
+  color: #465651;
+  font-size: 0.87rem;
+}
+.finalState {
+  margin: 1.35rem 0 0;
+  padding: 0.9rem;
+  background: #edf7f2;
+  color: #1d5848;
+  font-weight: 700;
+}
+
+.auditPanel h2 {
+  margin-bottom: 0.5rem;
+}
+.auditList li {
+  padding: 1rem 0;
+  border-top: 1px solid #e0e5e4;
+}
+.auditList time,
+.auditList strong {
+  display: block;
+}
+.auditList time {
+  margin-bottom: 0.3rem;
+  color: #64716f;
+  font-size: 0.78rem;
+}
+.auditList p {
+  margin: 0.45rem 0;
+  color: #3c4947;
+  font-size: 0.9rem;
+}
+.auditList dl {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+}
+.auditList dl div {
+  padding: 0.5rem;
+  background: #f5f7f7;
+}
+.auditList dt {
+  margin-bottom: 0.2rem;
+  color: #64716f;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.auditList dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #33423f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.73rem;
+}
+
+@media (max-width: 800px) {
+  .workspace {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+  .auditPanel {
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .workspace {
+    gap: 1rem;
+    padding: 0.7rem;
+  }
+  .flowPanel,
+  .auditPanel {
+    padding: 1rem;
+    border-radius: 0.45rem;
+  }
+  .heading,
+  .stepSummary,
+  .currentAction,
+  .formActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .workflowState {
+    min-width: 0;
+  }
+  .step {
+    grid-template-columns: 2.1rem minmax(0, 1fr);
+    gap: 0.55rem;
+  }
+  .step:not(:last-child)::before {
+    left: 0.85rem;
+  }
+  .sequence {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+  .stepSummary button,
+  .currentAction button {
+    width: 100%;
+  }
+  .editForm {
+    grid-template-columns: 1fr;
+  }
+  .reason,
+  .formActions {
+    grid-column: auto;
+  }
+}
+.visuallyHidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

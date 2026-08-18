@@ -1,0 +1,336 @@
+.app {
+  min-height: 100vh;
+  background: #f5f7fa;
+  color: #19212c;
+}
+
+.skipLink {
+  position: fixed;
+  z-index: 10;
+  top: -3rem;
+  left: 1rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.3rem;
+  background: #102a43;
+  color: #fff;
+}
+
+.skipLink:focus {
+  top: 1rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 2.2fr);
+  max-width: 1440px;
+  min-height: calc(100vh - 4.5rem);
+  margin: 0 auto;
+  background: #fff;
+}
+
+.requestList {
+  border-right: 1px solid #dce3eb;
+  background: #fbfcfe;
+  padding: 1.5rem;
+}
+
+.listHeading,
+.detailHeading,
+.sectionHeading,
+.proposalHeading,
+.statusControl,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.3rem;
+  color: #53657a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.listHeading h1,
+.detailHeading h2,
+.sectionHeading h3 {
+  margin: 0;
+}
+.fixtureBadge {
+  border-radius: 999px;
+  background: #fff1c2;
+  color: #745400;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.55rem;
+  white-space: nowrap;
+}
+.fixtureNote {
+  margin: 1rem 0 1.25rem;
+  color: #5d6b7b;
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.requestList ol {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.requestList button {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.8rem;
+  text-align: left;
+}
+.requestList button:hover {
+  background: #edf3f9;
+}
+.requestList button span,
+.requestList button small {
+  display: block;
+  color: #657589;
+  font-size: 0.75rem;
+}
+.requestList button strong {
+  display: block;
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+.requestList button.selectedRequest {
+  background: #e8f2fc;
+  border-color: #8ab4df;
+}
+
+.detail {
+  min-width: 0;
+  padding: 2rem clamp(1.25rem, 4vw, 4rem);
+}
+.breadcrumb {
+  color: #657589;
+  font-size: 0.82rem;
+}
+.detailHeading {
+  align-items: flex-start;
+  margin: 1.5rem 0;
+}
+.detailHeading h2 {
+  font-size: clamp(1.45rem, 3vw, 2rem);
+}
+.detailHeading p {
+  max-width: 46rem;
+  color: #53657a;
+  line-height: 1.6;
+}
+.status {
+  border-radius: 999px;
+  background: #dceeff;
+  color: #075795;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.4rem 0.65rem;
+  white-space: nowrap;
+}
+
+.metadata {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 1.5rem;
+  background: #dce3eb;
+  border: 1px solid #dce3eb;
+}
+.metadata div {
+  background: #fff;
+  padding: 0.75rem;
+}
+.metadata dt {
+  color: #657589;
+  font-size: 0.75rem;
+}
+.metadata dd {
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.statusControl {
+  align-items: end;
+  border: 1px solid #dce3eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+.statusControl h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.statusControl p {
+  margin: 0.3rem 0 0;
+  color: #5d6b7b;
+  font-size: 0.82rem;
+}
+.statusControl label {
+  display: grid;
+  gap: 0.3rem;
+  color: #53657a;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.app select,
+.app button {
+  font: inherit;
+}
+.app select {
+  min-height: 2.4rem;
+  border: 1px solid #aebdcb;
+  border-radius: 0.3rem;
+  background: #fff;
+  color: #19212c;
+  padding: 0 0.6rem;
+}
+.statusControl > button,
+.actions button {
+  min-height: 2.4rem;
+  border: 1px solid #155e9a;
+  border-radius: 0.3rem;
+  background: #155e9a;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 0 0.75rem;
+}
+.app button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.guidance {
+  margin: 1rem 0;
+  border-left: 4px solid #c88719;
+  background: #fff8e7;
+  padding: 0.85rem 1rem;
+}
+.guidance strong {
+  color: #664400;
+}
+.guidance p {
+  margin: 0.35rem 0 0;
+  color: #594d31;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.error {
+  margin: 1rem 0;
+  border: 1px solid #d66a6a;
+  border-radius: 0.35rem;
+  background: #fff1f1;
+  color: #8b1e1e;
+  padding: 0.75rem;
+}
+
+.proposals {
+  margin-top: 2rem;
+}
+.sectionHeading {
+  margin-bottom: 0.75rem;
+}
+.sectionHeading > span {
+  color: #657589;
+  font-size: 0.82rem;
+}
+.proposalList {
+  display: grid;
+  gap: 0.8rem;
+}
+.proposal {
+  border: 1px solid #dce3eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+.proposalHeading h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+.proposalHeading span {
+  color: #53657a;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.proposal blockquote {
+  margin: 0.85rem 0;
+  border-left: 3px solid #8ab4df;
+  background: #f4f8fc;
+  color: #263848;
+  padding: 0.8rem;
+  line-height: 1.5;
+}
+.proposal > p {
+  color: #53657a;
+  font-size: 0.87rem;
+  line-height: 1.45;
+}
+.actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.actions button:nth-child(2),
+.actions button:nth-child(3) {
+  border-color: #9cabb9;
+  background: #fff;
+  color: #32475a;
+}
+.empty {
+  color: #657589;
+  padding: 1rem 0;
+}
+
+.app button:focus-visible,
+.app select:focus-visible,
+.app a:focus-visible {
+  outline: 3px solid #e3a725;
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  .requestList {
+    border-right: 0;
+    border-bottom: 1px solid #dce3eb;
+    padding: 1rem;
+  }
+  .requestList ol {
+    grid-auto-columns: minmax(14rem, 85%);
+    grid-auto-flow: column;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+  .detail {
+    padding: 1.25rem 1rem 2rem;
+  }
+  .detailHeading,
+  .statusControl {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .metadata {
+    grid-template-columns: 1fr;
+  }
+  .statusControl {
+    align-items: stretch;
+  }
+  .statusControl > button {
+    width: 100%;
+  }
+}

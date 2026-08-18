@@ -1,3 +1,4 @@
+import { WorkspaceHeader } from "@/components/workspace-header";
 import { SystemHealthStatus } from "@/features/system/system-health-status";
 
 import styles from "./page.module.css";
@@ -133,35 +134,7 @@ export default function Home() {
         문서 편집 영역으로 건너뛰기
       </a>
 
-      <header className={styles.header}>
-        <a className={styles.brand} href="#workspace">
-          <span className={styles.brandMark}>ND</span>
-          <span>
-            <strong>Document Workspace</strong>
-            <small>GMP Development</small>
-          </span>
-        </a>
-
-        <nav aria-label="주 메뉴" className={styles.primaryNav}>
-          <a aria-current="page" href="#documents">
-            문서
-          </a>
-          <a href="#relations">관계·영향</a>
-          <a href="#evidence">제품·검증 근거</a>
-          <a href="#approvals">승인 흐름</a>
-          <a href="#history">변경 이력</a>
-        </nav>
-
-        <div className={styles.headerTools}>
-          <label className={styles.search}>
-            <Icon name="search" size={14} />
-            <span className={styles.visuallyHidden}>문서 또는 명령 검색</span>
-            <input placeholder="문서 또는 명령 검색" type="search" />
-            <kbd>⌘ K</kbd>
-          </label>
-          <span className={styles.userBadge}>KM</span>
-        </div>
-      </header>
+      <WorkspaceHeader currentPath="/" />
 
       <div className={styles.workspace} id="workspace">
         <aside className={styles.projectPanel} id="documents">
@@ -184,7 +157,7 @@ export default function Home() {
           <div className={styles.panelSection}>
             <div className={styles.sectionLabel}>
               <span>문서 구조</span>
-              <a href="#new-document">+ 추가</a>
+              <a href="/documents/new/">+ 추가</a>
             </div>
             <div className={styles.tree}>
               <div className={styles.folderRow}>

@@ -1,0 +1,197 @@
+.header {
+  align-items: center;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 245px minmax(420px, 1fr) minmax(280px, 410px);
+  height: 58px;
+  padding: 0 18px;
+}
+
+.brand {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.brandMark {
+  align-items: center;
+  background: var(--navy);
+  border-radius: 7px;
+  color: white;
+  display: flex;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  height: 32px;
+  justify-content: center;
+  width: 36px;
+}
+
+.brandCopy strong,
+.brandCopy small {
+  display: block;
+}
+
+.brandCopy strong {
+  font-size: 12px;
+}
+
+.brandCopy small {
+  color: var(--muted);
+  font-size: 9px;
+  margin-top: 2px;
+}
+
+.primaryNav {
+  align-items: center;
+  display: flex;
+  height: 100%;
+}
+
+.primaryNav a {
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  color: #536176;
+  display: flex;
+  font-size: 11px;
+  font-weight: 600;
+  height: 100%;
+  padding: 0 14px;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.primaryNav a:hover,
+.primaryNav a[aria-current="page"] {
+  border-bottom-color: var(--accent);
+  color: var(--foreground);
+}
+
+.headerTools {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.search {
+  align-items: center;
+  background: #f5f7fa;
+  border: 1px solid #dde3eb;
+  border-radius: 7px;
+  color: #7a8698;
+  display: flex;
+  height: 34px;
+  max-width: 330px;
+  padding: 0 9px;
+  width: 100%;
+}
+
+.search label {
+  align-items: center;
+  display: flex;
+  width: 100%;
+}
+
+.search svg {
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.search:focus-within {
+  background: white;
+  border-color: #8bb4f8;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 10%);
+}
+
+.search input {
+  background: transparent;
+  border: 0;
+  color: var(--foreground);
+  flex: 1;
+  font-size: 11px;
+  min-width: 0;
+  outline: 0;
+  padding: 0 8px;
+}
+
+.search kbd {
+  background: white;
+  border: 1px solid #d5dce5;
+  border-radius: 4px;
+  color: #7a8698;
+  font-family: inherit;
+  font-size: 8px;
+  padding: 2px 5px;
+}
+
+.userBadge {
+  align-items: center;
+  background: #dbeafe;
+  border: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  color: #1e40af;
+  display: flex;
+  flex: 0 0 auto;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.visuallyHidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media (max-width: 1180px) {
+  .header {
+    grid-template-columns: 230px 1fr 300px;
+  }
+
+  .primaryNav a {
+    padding: 0 8px;
+  }
+}
+
+@media (max-width: 820px) {
+  .header {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 0 12px;
+  }
+
+  .brandCopy,
+  .primaryNav {
+    display: none;
+  }
+
+  .headerTools {
+    min-width: 0;
+  }
+
+  .search {
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .header {
+    height: 52px;
+  }
+
+  .search kbd {
+    display: none;
+  }
+}
