@@ -26,7 +26,7 @@
 | 비동기 처리 | Celery, Redis |
 | 데이터베이스 | PostgreSQL, pgvector |
 | Web | Next.js static export, React, TypeScript |
-| UI 및 상태 | Chakra UI provider, CSS Modules, TanStack Query |
+| UI 및 상태 | CSS Modules, TanStack Query |
 | API client | OpenAPI Generator `typescript-axios` |
 | AI | OpenAI Responses API, Structured Outputs |
 | 파일 저장 | Naver Cloud Object Storage |

@@ -15,8 +15,6 @@
     "check": "pnpm run api:check && pnpm run lint && pnpm run typecheck"
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.36.1",
-    "@emotion/react": "^11.14.0",
     "@swc/helpers": "^0.5.23",
     "@tanstack/react-query": "^5.101.4",
     "axios": "^1.19.0",
