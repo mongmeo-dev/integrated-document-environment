@@ -159,12 +159,14 @@ self-signup은 제공하지 않습니다.
 
 ```bash
 mise exec -- poetry -C apps/api run alembic upgrade head
-mise exec -- poetry -C apps/api run python -m ide_api.cmd.create_user \
+mise exec -- poetry -C apps/api run ide-create-user \
   --email developer@neudive.com \
   --display-name "김개발"
 ```
 
-비밀번호는 명령 실행 중 대화형으로 입력하며 DB에는 Argon2 hash만 저장됩니다.
+비밀번호와 확인 비밀번호는 명령 실행 중 대화형으로 입력하며 명령행 인자나 shell
+history에 남기지 않습니다. DB에는 Argon2 hash만 저장됩니다. 이메일은 앞뒤 공백을
+제거하고 소문자로 저장하며, 이미 등록된 이메일로는 계정을 만들 수 없습니다.
 
 ## API 계약과 codegen
 

@@ -26,6 +26,9 @@ dependencies = [
     "opencv-python-headless (>=5.0.0.93,<6.0.0.0)"
 ]
 
+[project.scripts]
+ide-create-user = "ide_api.cmd.create_user:main"
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

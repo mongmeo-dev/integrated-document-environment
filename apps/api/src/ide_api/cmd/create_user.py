@@ -38,13 +38,17 @@ def main() -> None:
     if password != confirmation:
         raise SystemExit("Passwords do not match.")
 
-    user = asyncio.run(
-        create_user(
-            email=args.email,
-            display_name=args.display_name,
-            password=password,
+    try:
+        user = asyncio.run(
+            create_user(
+                email=args.email,
+                display_name=args.display_name,
+                password=password,
+            )
         )
-    )
+    except ValueError as error:
+        parser.error(str(error))
+
     print(f"Created internal user {user.email} ({user.id}).")
 
 
