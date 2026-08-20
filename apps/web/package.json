@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "api:spec": "mise exec -- poetry -C ../api run python scripts/export_openapi.py --output ../web/openapi/openapi.json",
     "api:generate": "pnpm run api:spec && openapi-generator-cli generate -c openapi-generator-config.json && node scripts/normalize-generated.mjs",
     "api:check": "pnpm run api:generate && git diff --exit-code -- openapi/openapi.json src/api/generated",
