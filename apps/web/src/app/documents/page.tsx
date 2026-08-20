@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 
 import { documentsApi } from "@/api/client";
-import { type DocumentResponse, DocumentStatus } from "@/api/generated";
+import {
+  type DocumentResponse,
+  DocumentStatus,
+  InputKind,
+} from "@/api/generated";
 import { WorkspaceHeader } from "@/components/workspace-header";
 
 import styles from "./documents.module.css";
@@ -30,6 +34,13 @@ const documentStateLabels: Record<DocumentStatus, DocumentState> = {
   [DocumentStatus.Rejected]: "검토 중",
 };
 
+const inputKindLabels = {
+  [InputKind.LatexProject]: "LaTeX 프로젝트 · 정본",
+  [InputKind.DocxImport]: "DOCX 가져오기 · 변환 검토",
+  [InputKind.TextPdf]: "텍스트 PDF · 참조",
+  [InputKind.ScannedPdf]: "스캔 PDF · 분석 전용",
+} as const;
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "medium",
@@ -45,6 +56,7 @@ function apiErrorMessage(error: unknown) {
 
 export default function DocumentsPage() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filter, setFilter] = useState<(typeof filters)[number]>("전체");
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,8 +66,19 @@ export default function DocumentsPage() {
     const initialQuery = new URLSearchParams(window.location.search)
       .get("query")
       ?.trim();
-    if (initialQuery) setQuery(initialQuery);
+    if (initialQuery) {
+      setQuery(initialQuery);
+      setDebouncedQuery(initialQuery);
+    }
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     let active = true;
@@ -65,7 +88,7 @@ export default function DocumentsPage() {
       setError(null);
       try {
         const response = await documentsApi.listDocuments({
-          query: query.trim() || undefined,
+          query: debouncedQuery.trim() || undefined,
           status:
             filter === "전체" ? undefined : documentStatusByFilter[filter],
         });
@@ -81,7 +104,7 @@ export default function DocumentsPage() {
     return () => {
       active = false;
     };
-  }, [filter, query]);
+  }, [debouncedQuery, filter]);
 
   return (
     <main className={styles.app}>
@@ -91,31 +114,13 @@ export default function DocumentsPage() {
       <WorkspaceHeader currentPath="/documents/" />
 
       <div className={styles.workspace}>
-        <aside className={styles.sidebar} aria-label="문서 작업공간">
-          <p className={styles.eyebrow}>현재 작업공간</p>
-          <strong>SaMD Core v2.4</strong>
-          <div className={styles.branch}>문서 등록 및 검토</div>
-          <nav aria-label="문서 범주" className={styles.tree}>
-            <strong>문서 구조</strong>
-            <a aria-current="page" href="/documents">
-              전체 문서 <b>{documents.length}</b>
-            </a>
-            <a href="/documents/validation">원본 입력 검증 상태</a>
-          </nav>
-          <section className={styles.sidebarNote}>
-            <span>등록 범위</span>
-            <p>DOCX 및 PDF 원본을 등록 준비할 수 있습니다.</p>
-          </section>
-        </aside>
-
         <section className={styles.content} id="document-list">
-          <div className={styles.breadcrumb}>문서 구조 / 전체 문서</div>
           <div className={styles.titleRow}>
             <div>
               <h1>문서 탐색</h1>
-              <p>변경 상태와 검토 맥락을 기준으로 작업 문서를 찾습니다.</p>
+              <p>등록된 원본 문서의 상태와 검토 작업을 한곳에서 확인합니다.</p>
             </div>
-            <a className={styles.newDocument} href="/documents/new">
+            <a className={styles.newDocument} href="/documents/new/">
               <span aria-hidden="true">+</span> 문서 등록 준비
             </a>
           </div>
@@ -126,7 +131,7 @@ export default function DocumentsPage() {
               <span className={styles.visuallyHidden}>문서 검색</span>
               <input
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="문서명 또는 문서 ID 검색"
+                placeholder="파일명으로 검색"
                 type="search"
                 value={query}
               />
@@ -148,8 +153,10 @@ export default function DocumentsPage() {
           </div>
 
           <div className={styles.listSummary}>
-            <span>표시 문서 {documents.length}개</span>
-            <span>최근 등록 순</span>
+            <span aria-live="polite">
+              {isLoading ? "문서 검색 중" : `검색 결과 ${documents.length}개`}
+            </span>
+            <span>등록 시각 기준</span>
           </div>
           {isLoading ? (
             <p className={styles.empty} aria-live="polite">
@@ -165,41 +172,73 @@ export default function DocumentsPage() {
             </p>
           ) : (
             <ul className={styles.documentList}>
+              <li aria-hidden="true" className={styles.columnHeaders}>
+                <span>문서</span>
+                <span>형식</span>
+                <span>입력 유형</span>
+                <span>현재 상태</span>
+                <span>등록 시각</span>
+                <span />
+              </li>
               {documents.map((document) => {
-                const type = document.original_file.media_type.includes("pdf")
-                  ? "PDF"
-                  : "DOCX";
+                const type =
+                  document.input_kind === InputKind.LatexProject
+                    ? "LaTeX"
+                    : document.input_kind === InputKind.DocxImport
+                      ? "DOCX 가져오기"
+                      : "PDF 참조";
                 const state = documentStateLabels[document.status];
+                const inputKind = document.input_kind
+                  ? inputKindLabels[document.input_kind]
+                  : "입력 유형 확인 중";
                 return (
                   <li className={styles.documentRow} key={document.id}>
-                    <span
-                      className={
-                        type === "DOCX" ? styles.wordType : styles.pdfType
-                      }
-                    >
-                      {type === "DOCX" ? "W" : "PDF"}
-                    </span>
                     <div className={styles.documentName}>
-                      <strong>
+                      <a
+                        href={`/documents/${document.id}/`}
+                        className={styles.documentLink}
+                      >
                         {document.original_file.original_filename}
-                      </strong>
-                      <span>
-                        {document.id} ·{" "}
-                        {document.input_kind ?? "입력 유형 확인 중"}
+                      </a>
+                      <span className={styles.documentId}>
+                        ID {document.id.slice(0, 8)}
                       </span>
                     </div>
+                    <span className={styles.fileType} data-label="형식">
+                      <span
+                        className={
+                          type === "LaTeX"
+                            ? styles.latexType
+                            : type === "DOCX 가져오기"
+                              ? styles.wordType
+                              : styles.pdfType
+                        }
+                        aria-hidden="true"
+                      >
+                        {type === "LaTeX"
+                          ? "TeX"
+                          : type === "DOCX 가져오기"
+                            ? "W"
+                            : "PDF"}
+                      </span>
+                      {type}
+                    </span>
+                    <span className={styles.inputKind} data-label="입력 유형">
+                      {inputKind}
+                    </span>
                     <span
                       className={`${styles.state} ${state === "변경 있음" ? styles.changed : state === "검토 중" ? styles.review : styles.current}`}
+                      data-label="현재 상태"
                     >
                       {state}
                     </span>
-                    <span className={styles.updated}>
+                    <span className={styles.updated} data-label="등록 시각">
                       {formatDate(document.created_at)}
                     </span>
                     <a
-                      aria-label={`${document.original_file.original_filename} 변경 요청 열기`}
+                      aria-label={`${document.original_file.original_filename} 열기`}
                       className={styles.openDocument}
-                      href={`/documents/nd-srs-002/changes/?documentId=${encodeURIComponent(document.id)}`}
+                      href={`/documents/${document.id}/`}
                     >
                       열기 <span aria-hidden="true">›</span>
                     </a>
@@ -209,18 +248,6 @@ export default function DocumentsPage() {
             </ul>
           )}
         </section>
-
-        <aside className={styles.activity} aria-label="문서 등록 안내">
-          <div className={styles.activityHeading}>
-            <span>문서 작업</span>
-            <h2>등록 및 검토</h2>
-          </div>
-          <section className={styles.formatSupport}>
-            <span>지원 형식</span>
-            <strong>DOCX · PDF</strong>
-            <p>등록한 원본의 검증 상태와 변경 요청을 문서별로 확인합니다.</p>
-          </section>
-        </aside>
       </div>
     </main>
   );

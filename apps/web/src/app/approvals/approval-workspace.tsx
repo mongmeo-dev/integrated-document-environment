@@ -8,81 +8,18 @@ import {
   useState,
 } from "react";
 
-import { approvalsApi } from "@/api/client";
+import { approvalsApi, authApi } from "@/api/client";
 import {
   ApprovalStatus,
   type ApprovalStepResponse,
   type ApprovalWorkflowAuditResponse,
   type ApprovalWorkflowResponse,
+  type UserResponse,
 } from "@/api/generated";
 
 import styles from "./approvals.module.css";
 
-const fixtureDocumentId = "ND-SRS-002";
-const currentUserId = "user-km";
-
 type Workflow = ApprovalWorkflowResponse & { steps: ApprovalStepResponse[] };
-
-const fixtureWorkflow: Workflow = {
-  id: "fixture-workflow-002",
-  document_id: fixtureDocumentId,
-  status: ApprovalStatus.Current,
-  is_started: true,
-  started_at: "2026-08-18T08:30:00Z",
-  completed_at: null,
-  created_at: "2026-08-18T08:15:00Z",
-  updated_at: "2026-08-18T08:30:00Z",
-  steps: [
-    {
-      id: "fixture-step-01",
-      workflow_id: "fixture-workflow-002",
-      name: "요구사항 검토",
-      assignee_id: "user-jh",
-      sequence: 1,
-      status: ApprovalStatus.Completed,
-      completed_at: "2026-08-18T08:30:00Z",
-    },
-    {
-      id: "fixture-step-02",
-      workflow_id: "fixture-workflow-002",
-      name: "품질 보증 승인",
-      assignee_id: currentUserId,
-      sequence: 2,
-      status: ApprovalStatus.Current,
-      completed_at: null,
-    },
-    {
-      id: "fixture-step-03",
-      workflow_id: "fixture-workflow-002",
-      name: "출시 책임자 확인",
-      assignee_id: "user-ms",
-      sequence: 3,
-      status: ApprovalStatus.Pending,
-      completed_at: null,
-    },
-  ],
-};
-
-const fixtureAudits: ApprovalWorkflowAuditResponse[] = [
-  {
-    id: "fixture-audit-02",
-    workflow_id: fixtureWorkflow.id,
-    actor_id: "user-jh",
-    reason: "요구사항과 추적 근거를 검토하여 1단계 승인을 완료했습니다.",
-    changed_at: "2026-08-18T08:30:00Z",
-    before_json: { step: 1, status: "current" },
-    after_json: { step: 1, status: "completed", next_step: 2 },
-  },
-  {
-    id: "fixture-audit-01",
-    workflow_id: fixtureWorkflow.id,
-    actor_id: "user-km",
-    reason: "품질 검토 이후 출시 책임자 확인을 마지막 순서로 지정했습니다.",
-    changed_at: "2026-08-18T08:15:00Z",
-    before_json: { steps: 2 },
-    after_json: { steps: 3, sequence: [1, 2, 3] },
-  },
-];
 
 function errorMessage(error: unknown) {
   return error instanceof Error
@@ -96,13 +33,9 @@ function statusLabel(status: ApprovalStepResponse["status"]) {
   return "대기";
 }
 
-function assigneeLabel(id: string) {
-  const labels: Record<string, string> = {
-    "user-jh": "JH · 요구사항 검토자",
-    "user-km": "KM · 품질 보증",
-    "user-ms": "MS · 출시 책임자",
-  };
-  return labels[id] ?? id;
+function assigneeLabel(id: string, currentUser: UserResponse | null) {
+  if (currentUser?.id === id) return `${currentUser.display_name} · 나`;
+  return `담당자 ${id.slice(0, 8)}`;
 }
 
 function formatDate(value: string | null) {
@@ -114,48 +47,30 @@ function formatDate(value: string | null) {
     : "미완료";
 }
 
-export function ApprovalWorkspace() {
-  const [searchParams] = useState(
-    () =>
-      new URLSearchParams(
-        typeof window === "undefined" ? "" : window.location.search,
-      ),
-  );
-  const documentId = searchParams.get("documentId");
-  const workflowId = searchParams.get("workflowId");
+export function ApprovalWorkspace({ documentId }: { documentId: string }) {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [audits, setAudits] = useState<ApprovalWorkflowAuditResponse[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
-  const [showFixture, setShowFixture] = useState(false);
 
   const loadWorkflow = useCallback(async () => {
-    if (showFixture) {
-      setWorkflow(fixtureWorkflow);
-      setAudits(fixtureAudits);
-      return;
-    }
-    if (!documentId && !workflowId) {
-      setWorkflow(null);
-      setAudits([]);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
-      const loaded = workflowId
-        ? await approvalsApi.getApprovalWorkflow({ workflowId })
-        : await approvalsApi.getDocumentApprovalWorkflow({
-            documentId: documentId as string,
-          });
+      const [loaded, user] = await Promise.all([
+        approvalsApi.getDocumentApprovalWorkflow({ documentId }),
+        authApi.getCurrentUser(),
+      ]);
       const loadedAudits = await approvalsApi.listApprovalWorkflowAudits({
         workflowId: loaded.data.id,
       });
       setWorkflow({ ...loaded.data, steps: loaded.data.steps ?? [] });
       setAudits(loadedAudits.data);
+      setCurrentUser(user.data);
     } catch (requestError) {
       setError(
         `승인 흐름을 불러오지 못했습니다: ${errorMessage(requestError)}`,
@@ -165,7 +80,7 @@ export function ApprovalWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, [documentId, showFixture, workflowId]);
+  }, [documentId]);
 
   useEffect(() => {
     void loadWorkflow();
@@ -181,7 +96,7 @@ export function ApprovalWorkspace() {
   const isFinalCurrentStep = currentStep?.sequence === orderedSteps.length;
 
   async function approveCurrentStep() {
-    if (!currentStep || currentStep.assignee_id !== currentUserId) return;
+    if (!currentStep || currentStep.assignee_id !== currentUser?.id) return;
     setActionId(currentStep.id);
     setError(null);
     try {
@@ -229,6 +144,22 @@ export function ApprovalWorkspace() {
     }
   }
 
+  async function startWorkflow() {
+    if (!workflow || workflow.is_started) return;
+    setActionId(workflow.id);
+    setError(null);
+    try {
+      await approvalsApi.startApprovalWorkflow({ workflowId: workflow.id });
+      await loadWorkflow();
+    } catch (requestError) {
+      setError(
+        `승인 흐름을 시작하지 못했습니다: ${errorMessage(requestError)}`,
+      );
+    } finally {
+      setActionId(null);
+    }
+  }
+
   if (!workflow) {
     return (
       <div className={styles.workspace} id="approval-workspace">
@@ -244,16 +175,13 @@ export function ApprovalWorkspace() {
               {error}
             </p>
           )}
-          {!loading && !error && (
-            <>
-              <p>
-                URL에 documentId 또는 workflowId를 지정해 승인 흐름을
-                조회하세요.
-              </p>
-              <button onClick={() => setShowFixture(true)} type="button">
-                시안 보기
-              </button>
-            </>
+          {!loading && (
+            <div className={styles.finalState}>
+              <p>이 문서에 구성된 승인 흐름이 없습니다.</p>
+              <a href={`/documents/${documentId}/approvals/configure/`}>
+                승인 흐름 구성
+              </a>
+            </div>
           )}
         </section>
       </div>
@@ -269,13 +197,8 @@ export function ApprovalWorkspace() {
       >
         <div className={styles.heading}>
           <div>
-            <p className={styles.eyebrow}>
-              문서별 순차 승인 ·{" "}
-              {showFixture && (
-                <span className={styles.fixtureBadge}>Fixture</span>
-              )}
-            </p>
-            <h1 id="approval-heading">{workflow.document_id} · 순차 승인</h1>
+            <p className={styles.eyebrow}>문서별 순차 승인</p>
+            <h1 id="approval-heading">승인 단계</h1>
             <p>각 단계가 완료되어야 다음 담당자에게 승인 권한이 열립니다.</p>
           </div>
           <div className={styles.workflowState}>
@@ -284,7 +207,7 @@ export function ApprovalWorkspace() {
                 ? "문서 승인 완료"
                 : "승인 진행 중"}
             </strong>
-            <span>흐름 ID {workflow.id}</span>
+            <span>{orderedSteps.length}단계 구성</span>
           </div>
         </div>
 
@@ -329,7 +252,7 @@ export function ApprovalWorkspace() {
                       <h2>{step.name}</h2>
                       <p>
                         <strong>담당자</strong>{" "}
-                        {assigneeLabel(step.assignee_id)} ·{" "}
+                        {assigneeLabel(step.assignee_id, currentUser)} ·{" "}
                         <strong>순서</strong> {step.sequence} /{" "}
                         {orderedSteps.length}
                       </p>
@@ -409,11 +332,28 @@ export function ApprovalWorkspace() {
           })}
         </ol>
 
-        {currentStep ? (
+        {!workflow.is_started ? (
+          <section className={styles.currentAction} aria-label="승인 흐름 시작">
+            <div>
+              <p>구성 완료</p>
+              <strong>승인 흐름을 시작할 준비가 되었습니다.</strong>
+              <span> 시작하면 첫 번째 담당자에게 승인 권한이 열립니다.</span>
+            </div>
+            <button
+              disabled={actionId === workflow.id}
+              onClick={startWorkflow}
+              type="button"
+            >
+              {actionId === workflow.id ? "시작 중…" : "승인 흐름 시작"}
+            </button>
+          </section>
+        ) : currentStep ? (
           <section className={styles.currentAction} aria-label="현재 승인 작업">
             <div>
               <p>현재 담당자</p>
-              <strong>{assigneeLabel(currentStep.assignee_id)}</strong>
+              <strong>
+                {assigneeLabel(currentStep.assignee_id, currentUser)}
+              </strong>
               <span>
                 {" "}
                 {currentStep.name} · 순서 {currentStep.sequence}
@@ -421,7 +361,7 @@ export function ApprovalWorkspace() {
             </div>
             <button
               disabled={
-                currentStep.assignee_id !== currentUserId ||
+                currentStep.assignee_id !== currentUser?.id ||
                 actionId === currentStep.id
               }
               onClick={approveCurrentStep}
@@ -453,7 +393,7 @@ export function ApprovalWorkspace() {
               <time dateTime={audit.changed_at}>
                 {formatDate(audit.changed_at)}
               </time>
-              <strong>{assigneeLabel(audit.actor_id)}</strong>
+              <strong>{assigneeLabel(audit.actor_id, currentUser)}</strong>
               <p>{audit.reason}</p>
               <dl>
                 <div>

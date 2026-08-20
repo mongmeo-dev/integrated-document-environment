@@ -97,14 +97,21 @@
   background: #f1f7f4;
 }
 .workflowState strong,
-.workflowState span {
+.workflowState span,
+.workflowState a {
   display: block;
 }
-.workflowState span {
+.workflowState span,
+.workflowState a {
   margin-top: 0.2rem;
   color: #58646e;
   font-size: 0.78rem;
   overflow-wrap: anywhere;
+}
+
+.workflowState a {
+  color: #1d4ed8;
+  font-weight: 700;
 }
 
 .loading,
@@ -305,6 +312,108 @@
   font-weight: 700;
 }
 
+.finalState a {
+  color: #1d4ed8;
+  display: inline-block;
+  margin-top: 0.35rem;
+}
+
+.configuration {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 28px auto;
+  max-width: 980px;
+  padding: 28px;
+}
+
+.configuration header {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+}
+
+.configuration header h1 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin: 0 0 8px;
+}
+
+.configuration header p:last-child {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.configurationSteps {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.configurationSteps li {
+  align-items: end;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr) auto;
+  padding: 14px;
+}
+
+.configurationSteps li > span {
+  align-items: center;
+  background: var(--navy);
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  font-weight: 700;
+  height: 32px;
+  justify-content: center;
+  margin-bottom: 5px;
+  width: 32px;
+}
+
+.configurationSteps label {
+  color: var(--muted);
+  display: grid;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 5px;
+}
+
+.configurationSteps input {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  min-height: 42px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.configurationSteps button,
+.configurationActions button {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.configurationActions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 18px;
+}
+
+.configurationActions button:last-child {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-weight: 700;
+}
+
 .auditPanel h2 {
   margin-bottom: 0.5rem;
 }
@@ -357,6 +466,20 @@
   .auditPanel {
     grid-row: 2;
   }
+
+  .configuration {
+    margin: 16px;
+    padding: 20px;
+  }
+
+  .configurationSteps li {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .configurationSteps label,
+  .configurationSteps button {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 480px) {
@@ -400,6 +523,17 @@
   .reason,
   .formActions {
     grid-column: auto;
+  }
+
+  .configuration {
+    margin: 10px;
+    padding: 16px;
+  }
+
+  .configurationActions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
   }
 }
 .visuallyHidden {

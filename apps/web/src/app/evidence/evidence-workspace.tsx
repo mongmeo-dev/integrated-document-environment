@@ -85,7 +85,7 @@ function mapEvidence(
     reference: evidence.reference ?? "참조 없음",
     location: evidence.location ?? "위치 없음",
     version: evidence.version ?? "버전 정보 없음",
-    document: `문서 ${link.document_id}`,
+    document: "현재 문서",
     documentLocation: link.reason,
     linkId: link.id,
     status: link.status,
@@ -93,11 +93,9 @@ function mapEvidence(
   };
 }
 
-export function EvidenceWorkspace() {
+export function EvidenceWorkspace({ documentId }: { documentId: string }) {
   const [items, setItems] = useState<Evidence[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [documentId, setDocumentId] = useState("");
-  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<"전체" | Evidence["type"]>(
     "전체",
   );
@@ -128,7 +126,6 @@ export function EvidenceWorkspace() {
     setError(null);
     setItems([]);
     setSelectedId(null);
-    setActiveDocumentId(null);
     try {
       const { data: links } =
         await evidenceApi.listDocumentEvidenceLinkCandidates({
@@ -145,10 +142,8 @@ export function EvidenceWorkspace() {
       if (requestId !== requestIdRef.current) return;
       setItems(evidence);
       setSelectedId(evidence[0]?.id ?? null);
-      setActiveDocumentId(nextDocumentId);
     } catch (requestError) {
       if (requestId !== requestIdRef.current) return;
-      setActiveDocumentId(null);
       setError(
         `문서 근거 목록을 불러오지 못했습니다: ${errorMessage(requestError)}`,
       );
@@ -161,14 +156,8 @@ export function EvidenceWorkspace() {
   }, []);
 
   useEffect(() => {
-    const urlDocumentId = new URLSearchParams(window.location.search)
-      .get("documentId")
-      ?.trim();
-    if (urlDocumentId) {
-      setDocumentId(urlDocumentId);
-      void loadDocumentEvidence(urlDocumentId);
-    }
-  }, [loadDocumentEvidence]);
+    void loadDocumentEvidence(documentId);
+  }, [documentId, loadDocumentEvidence]);
 
   const visibleItems = useMemo(
     () =>
@@ -184,7 +173,6 @@ export function EvidenceWorkspace() {
   async function performAction(action: "confirm" | "reject" | "review") {
     if (
       !selected ||
-      !activeDocumentId ||
       (action === "confirm" && selected.freshness === EvidenceFreshness.Stale)
     )
       return;
@@ -205,7 +193,7 @@ export function EvidenceWorkspace() {
           linkId: selected.linkId,
         });
       }
-      await loadDocumentEvidence(activeDocumentId);
+      await loadDocumentEvidence(documentId);
     } catch (requestError) {
       setError(
         `근거 조치를 완료하지 못했습니다: ${errorMessage(requestError)}`,
@@ -249,8 +237,7 @@ export function EvidenceWorkspace() {
   }
 
   async function createLinkCandidate() {
-    const nextDocumentId = documentId.trim();
-    if (!uploadedEvidence || !nextDocumentId) return;
+    if (!uploadedEvidence) return;
 
     const reason = linkReason.trim();
     if (!reason) {
@@ -264,13 +251,13 @@ export function EvidenceWorkspace() {
     try {
       const { data } = await evidenceApi.createDocumentEvidenceLinkCandidate({
         documentEvidenceLinkCreate: {
-          document_id: nextDocumentId,
+          document_id: documentId,
           evidence_id: uploadedEvidence.id,
           reason,
         },
       });
       setCreatedLinkId(data.id);
-      await loadDocumentEvidence(nextDocumentId);
+      await loadDocumentEvidence(documentId);
     } catch (requestError) {
       setLinkError(
         `연결 후보를 만들지 못했습니다: ${errorMessage(requestError)}`,
@@ -285,149 +272,13 @@ export function EvidenceWorkspace() {
       <aside className={styles.filters} aria-label="근거 필터">
         <div className={styles.panelHeading}>
           <div>
-            <p className={styles.eyebrow}>제품·검증 추적</p>
-            <h1>근거 검토</h1>
+            <p className={styles.eyebrow}>문서별 검토</p>
+            <h1>근거 후보 검토</h1>
           </div>
         </div>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const nextDocumentId = documentId.trim();
-            if (!nextDocumentId) {
-              setError("조회할 문서 UUID를 입력하세요.");
-              return;
-            }
-            const params = new URLSearchParams(window.location.search);
-            params.set("documentId", nextDocumentId);
-            window.history.replaceState(
-              null,
-              "",
-              `${window.location.pathname}?${params.toString()}`,
-            );
-            void loadDocumentEvidence(nextDocumentId);
-          }}
-          style={{ display: "grid", gap: "0.5rem", margin: "1rem 0 1.4rem" }}
-        >
-          <label htmlFor="evidence-document-id">문서 UUID</label>
-          <input
-            id="evidence-document-id"
-            onChange={(event) => setDocumentId(event.target.value)}
-            placeholder="문서 UUID 입력"
-            value={documentId}
-          />
-          <button disabled={isLoading} type="submit">
-            {isLoading ? "조회 중…" : "근거 조회"}
-          </button>
-        </form>
         <p className={styles.documentNote}>
-          URL의 documentId 또는 입력한 문서 UUID로 실제 근거 연결을 조회합니다.
+          이 문서에 연결된 근거 후보를 검토하고 명시적으로 결정합니다.
         </p>
-        <form
-          className={styles.uploadForm}
-          onSubmit={uploadEvidenceFile}
-          aria-label="파일 근거 등록"
-        >
-          <h2>파일 근거 등록</h2>
-          <p>이미지와 일반 파일을 실제 파일로 등록합니다.</p>
-          <label htmlFor="evidence-upload-title">제목</label>
-          <input
-            id="evidence-upload-title"
-            onChange={(event) => setUploadTitle(event.target.value)}
-            required
-            value={uploadTitle}
-          />
-          <label htmlFor="evidence-upload-description">설명</label>
-          <textarea
-            id="evidence-upload-description"
-            onChange={(event) => setUploadDescription(event.target.value)}
-            required
-            rows={3}
-            value={uploadDescription}
-          />
-          <label htmlFor="evidence-upload-version">버전 (선택)</label>
-          <input
-            id="evidence-upload-version"
-            onChange={(event) => setUploadVersion(event.target.value)}
-            value={uploadVersion}
-          />
-          <label htmlFor="evidence-upload-file">파일</label>
-          <input
-            id="evidence-upload-file"
-            onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
-            required
-            type="file"
-          />
-          <button disabled={isUploading} type="submit">
-            {isUploading ? "파일 등록 중…" : "파일 근거 등록"}
-          </button>
-          {uploadError && (
-            <p className={styles.error} role="alert">
-              {uploadError}
-            </p>
-          )}
-        </form>
-        {uploadedEvidence && (
-          <section className={styles.uploadSuccess} aria-live="polite">
-            <h2>파일 근거가 등록되었습니다</h2>
-            <p>
-              <strong>{uploadedEvidence.title}</strong>
-              <br />
-              {uploadedEvidence.description}
-            </p>
-            <dl>
-              <div>
-                <dt>유형</dt>
-                <dd>{typeLabel[uploadedEvidence.evidence_type]}</dd>
-              </div>
-              {uploadedEvidence.version && (
-                <div>
-                  <dt>버전</dt>
-                  <dd>{uploadedEvidence.version}</dd>
-                </div>
-              )}
-            </dl>
-            <a
-              href={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/api/v1/evidence/${uploadedEvidence.id}/file`}
-            >
-              등록한 파일 다운로드
-            </a>
-            {documentId.trim() ? (
-              <div className={styles.linkCandidate}>
-                <label htmlFor="evidence-link-reason">연결 후보 이유</label>
-                <textarea
-                  id="evidence-link-reason"
-                  onChange={(event) => setLinkReason(event.target.value)}
-                  rows={3}
-                  value={linkReason}
-                />
-                <button
-                  disabled={isCreatingLink}
-                  onClick={createLinkCandidate}
-                  type="button"
-                >
-                  {isCreatingLink
-                    ? "연결 후보 생성 중…"
-                    : "문서 연결 후보 만들기"}
-                </button>
-                {linkError && (
-                  <p className={styles.error} role="alert">
-                    {linkError}
-                  </p>
-                )}
-                {createdLinkId && (
-                  <p className={styles.success}>
-                    문서 연결 후보를 만들었습니다.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className={styles.actionHint}>
-                문서 UUID를 입력하면 이 파일의 문서 연결 후보를 만들 수
-                있습니다.
-              </p>
-            )}
-          </section>
-        )}
         <fieldset>
           <legend>근거 유형</legend>
           {(["전체", ...Object.values(EvidenceType)] as const).map((value) => (
@@ -466,13 +317,116 @@ export function EvidenceWorkspace() {
             </label>
           ))}
         </fieldset>
+        <details className={styles.uploadDetails}>
+          <summary>새 파일 근거 등록</summary>
+          <form
+            className={styles.uploadForm}
+            onSubmit={uploadEvidenceFile}
+            aria-label="파일 근거 등록"
+          >
+            <p>검토할 파일을 등록한 뒤 이 문서의 연결 후보로 추가합니다.</p>
+            <label htmlFor="evidence-upload-title">제목</label>
+            <input
+              id="evidence-upload-title"
+              onChange={(event) => setUploadTitle(event.target.value)}
+              required
+              value={uploadTitle}
+            />
+            <label htmlFor="evidence-upload-description">설명</label>
+            <textarea
+              id="evidence-upload-description"
+              onChange={(event) => setUploadDescription(event.target.value)}
+              required
+              rows={3}
+              value={uploadDescription}
+            />
+            <label htmlFor="evidence-upload-version">버전 (선택)</label>
+            <input
+              id="evidence-upload-version"
+              onChange={(event) => setUploadVersion(event.target.value)}
+              value={uploadVersion}
+            />
+            <label htmlFor="evidence-upload-file">파일</label>
+            <input
+              id="evidence-upload-file"
+              onChange={(event) =>
+                setUploadFile(event.target.files?.[0] ?? null)
+              }
+              required
+              type="file"
+            />
+            <button disabled={isUploading} type="submit">
+              {isUploading ? "파일 등록 중…" : "파일 등록"}
+            </button>
+            {uploadError && (
+              <p className={styles.error} role="alert">
+                {uploadError}
+              </p>
+            )}
+          </form>
+          {uploadedEvidence && (
+            <section className={styles.uploadSuccess} aria-live="polite">
+              <h2>파일 근거가 등록되었습니다</h2>
+              <p>
+                <strong>{uploadedEvidence.title}</strong>
+                <br />
+                {uploadedEvidence.description}
+              </p>
+              <dl>
+                <div>
+                  <dt>유형</dt>
+                  <dd>{typeLabel[uploadedEvidence.evidence_type]}</dd>
+                </div>
+                {uploadedEvidence.version && (
+                  <div>
+                    <dt>버전</dt>
+                    <dd>{uploadedEvidence.version}</dd>
+                  </div>
+                )}
+              </dl>
+              <a
+                href={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/api/v1/evidence/${uploadedEvidence.id}/file`}
+              >
+                등록한 파일 다운로드
+              </a>
+              <div className={styles.linkCandidate}>
+                <label htmlFor="evidence-link-reason">
+                  이 문서에 연결하는 이유
+                </label>
+                <textarea
+                  id="evidence-link-reason"
+                  onChange={(event) => setLinkReason(event.target.value)}
+                  rows={3}
+                  value={linkReason}
+                />
+                <button
+                  disabled={isCreatingLink}
+                  onClick={createLinkCandidate}
+                  type="button"
+                >
+                  {isCreatingLink ? "후보 추가 중…" : "문서 근거 후보로 추가"}
+                </button>
+                {linkError && (
+                  <p className={styles.error} role="alert">
+                    {linkError}
+                  </p>
+                )}
+                {createdLinkId && (
+                  <p className={styles.success}>
+                    문서 근거 후보에 추가했습니다.
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+        </details>
       </aside>
 
       <section className={styles.mainPanel} aria-labelledby="evidence-heading">
         <div className={styles.mainHeading}>
           <div>
-            <p className={styles.eyebrow}>근거 후보 {visibleItems.length}건</p>
-            <h2 id="evidence-heading">제품·검증 근거</h2>
+            <p className={styles.eyebrow}>검토 대상 {visibleItems.length}건</p>
+            <h2 id="evidence-heading">문서 근거 후보</h2>
           </div>
           <p className={styles.noAutoConfirm}>자동 확정 없음</p>
         </div>
@@ -523,7 +477,7 @@ export function EvidenceWorkspace() {
             <li className={styles.empty}>
               {hasLoaded
                 ? "선택한 조건에 맞는 근거가 없습니다."
-                : "문서 UUID를 입력해 근거 연결을 조회하세요."}
+                : "문서 근거를 불러오고 있습니다."}
             </li>
           )}
         </ol>

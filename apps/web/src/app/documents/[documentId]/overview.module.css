@@ -1,0 +1,177 @@
+.workspace {
+  color: #172033;
+  font-family:
+    "IBM Plex Sans", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  margin: 0 auto;
+  max-width: 1120px;
+}
+
+.heading {
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  color: #52647d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0 0 8px;
+}
+
+.heading h1,
+.panel h2,
+.nextStep h2,
+.rejection h2,
+.error h1 {
+  margin: 0;
+}
+
+.heading h1 {
+  font-size: 28px;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.heading > p:last-child {
+  color: #657287;
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+.summary,
+.detailsGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.summary {
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 16px;
+}
+
+.summary > div,
+.panel,
+.nextStep,
+.rejection,
+.error {
+  background: white;
+  border: 1px solid #d5dce6;
+  border-radius: 8px;
+}
+
+.summary > div {
+  padding: 16px;
+}
+
+.summary span,
+.panel dt {
+  color: #657287;
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.summary strong {
+  display: block;
+  font-size: 16px;
+  margin-top: 7px;
+}
+
+.detailsGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.panel h2,
+.nextStep h2,
+.rejection h2 {
+  border-bottom: 1px solid #d5dce6;
+  font-size: 15px;
+  padding: 13px 16px;
+}
+
+.panel dl {
+  margin: 0;
+}
+
+.panel dl > div {
+  border-bottom: 1px solid #e6ebf1;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(0, 1.2fr);
+  padding: 12px 16px;
+}
+
+.panel dl > div:last-child {
+  border-bottom: 0;
+}
+
+.panel dd {
+  font-size: 13px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.panel code {
+  background: #f1f4f8;
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
+.nextStep,
+.rejection {
+  margin-top: 16px;
+}
+
+.nextStep p,
+.rejection p {
+  font-size: 13px;
+  margin: 12px 16px;
+}
+
+.nextStep a,
+.error a {
+  background: #1f4f9a;
+  border-radius: 5px;
+  color: white;
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 16px 16px;
+  padding: 10px 13px;
+  text-decoration: none;
+}
+
+.rejection {
+  background: #fff4f5;
+  border-color: #f0b7bd;
+}
+
+.error {
+  margin: 0 auto;
+  max-width: 640px;
+  padding: 24px;
+}
+
+.error h1 {
+  font-size: 20px;
+}
+
+.error p {
+  color: #657287;
+  font-size: 14px;
+  margin: 10px 0 16px;
+}
+
+.error a {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .summary,
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+}

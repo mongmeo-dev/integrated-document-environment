@@ -1,0 +1,195 @@
+.workbench {
+  display: grid;
+  gap: 1rem;
+  color: #172033;
+}
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #cbd5e1;
+  padding-bottom: 1rem;
+}
+.eyebrow {
+  margin: 0 0 0.25rem;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.header h1,
+.panes h2,
+.panes h3 {
+  margin: 0;
+}
+.metadata {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(8rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+.metadata div {
+  min-width: 0;
+}
+.metadata dt {
+  color: #475569;
+  font-size: 0.75rem;
+}
+.metadata dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.reviewNotice,
+.error,
+.loading {
+  margin: 0;
+  border-left: 4px solid #2563eb;
+  background: #eff6ff;
+  padding: 0.85rem 1rem;
+}
+.error {
+  border-color: #b91c1c;
+  background: #fef2f2;
+}
+.panes {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.6fr) minmax(20rem, 1.5fr) minmax(
+      20rem,
+      1.2fr
+    );
+  gap: 1rem;
+  min-height: 38rem;
+}
+.files,
+.editor,
+.preview {
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  padding: 1rem;
+}
+.files ul {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.files li {
+  overflow-wrap: anywhere;
+  padding: 0.4rem 0;
+}
+.files span {
+  display: inline-block;
+  margin-left: 0.5rem;
+  border-radius: 0.25rem;
+  background: #dbeafe;
+  padding: 0.1rem 0.35rem;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+}
+.entrypoint {
+  font-weight: 700;
+}
+.editor {
+  display: grid;
+  grid-template-rows: auto auto minmax(28rem, 1fr);
+  gap: 0.75rem;
+}
+.paneHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.paneHeader div {
+  display: flex;
+  gap: 0.5rem;
+}
+.editor textarea {
+  min-height: 28rem;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #64748b;
+  padding: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.workbench button {
+  border: 1px solid #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+}
+.workbench button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.workbench button:focus-visible,
+.workbench a:focus-visible,
+.workbench textarea:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+.preview {
+  display: grid;
+  grid-template-rows: auto minmax(20rem, 1fr) auto;
+  gap: 0.75rem;
+}
+.pdf {
+  width: 100%;
+  height: 100%;
+  min-height: 28rem;
+  border: 1px solid #94a3b8;
+}
+.unavailable {
+  margin: 0;
+  align-self: center;
+  color: #475569;
+}
+.diagnostics {
+  border-top: 1px solid #cbd5e1;
+  padding-top: 0.75rem;
+}
+.diagnostics pre {
+  max-height: 12rem;
+  margin: 0.5rem 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #0f172a;
+  padding: 0.75rem;
+  color: #e2e8f0;
+  font-size: 0.78rem;
+}
+@media (max-width: 1100px) {
+  .panes {
+    grid-template-columns: minmax(10rem, 0.5fr) minmax(22rem, 1.5fr);
+  }
+  .preview {
+    grid-column: 1 / -1;
+    min-height: 32rem;
+  }
+}
+@media (max-width: 720px) {
+  .header,
+  .paneHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .metadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .panes {
+    grid-template-columns: 1fr;
+  }
+  .preview {
+    grid-column: auto;
+  }
+  .files {
+    max-height: 14rem;
+    overflow: auto;
+  }
+}

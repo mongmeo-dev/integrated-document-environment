@@ -2,40 +2,65 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { completionApi } from "@/api/client";
+import { completionApi, latexApi } from "@/api/client";
 import {
   CompletionBlockingCode,
   type CompletionBlockingReason,
   type CompletionEvaluation,
   type DocumentCompletionResponse,
+  type LatexProjectResponse,
 } from "@/api/generated";
 
 import styles from "./completion.module.css";
-
-const fixtureEvaluation: CompletionEvaluation = {
-  document_id: "ND-SRS-002",
-  external_edit_result_id: "fixture-external-result-002",
-  blocking_reasons: [
-    { code: CompletionBlockingCode.PendingChangeRequests, count: 1 },
-    { code: CompletionBlockingCode.PendingChangeProposals, count: 2 },
-    { code: CompletionBlockingCode.PendingRelationshipCandidates, count: 1 },
-    { code: CompletionBlockingCode.PendingImpactCandidates, count: 1 },
-    { code: CompletionBlockingCode.PendingEvidenceCandidates, count: 2 },
-    { code: CompletionBlockingCode.StaleEvidence, count: 1 },
-    { code: CompletionBlockingCode.VisualReviewIncomplete, count: 1 },
-    { code: CompletionBlockingCode.UnresolvedFormatDifferences, count: 5 },
-    { code: CompletionBlockingCode.ApprovalStepsIncomplete, count: 2 },
-  ],
-};
 
 type Gate = {
   id: string;
   label: string;
   detail: string;
   codes: CompletionBlockingCode[];
+  path:
+    | "changes"
+    | "impact"
+    | "evidence"
+    | "workbench"
+    | "import-review"
+    | "approvals";
 };
 
 const gates: Gate[] = [
+  {
+    id: "canonical-source",
+    label: "LaTeX 정본",
+    detail: "최신 LaTeX 리비전을 완료 대상으로 고정해야 합니다.",
+    codes: [
+      CompletionBlockingCode.LatexProjectMissing,
+      CompletionBlockingCode.LatexRevisionNotFound,
+      CompletionBlockingCode.LatexRevisionDocumentMismatch,
+      CompletionBlockingCode.LatexRevisionNotLatest,
+    ],
+    path: "workbench",
+  },
+  {
+    id: "compilation",
+    label: "컴파일 PDF",
+    detail: "최신 정본의 컴파일이 성공하고 PDF가 존재해야 합니다.",
+    codes: [
+      CompletionBlockingCode.CompileIncomplete,
+      CompletionBlockingCode.CompileFailed,
+      CompletionBlockingCode.CompiledPdfMissing,
+    ],
+    path: "workbench",
+  },
+  {
+    id: "conversion-review",
+    label: "DOCX 변환 검토",
+    detail: "DOCX 변환 후보는 사유가 있는 사람 결정으로 확정해야 합니다.",
+    codes: [
+      CompletionBlockingCode.ConversionReviewPending,
+      CompletionBlockingCode.ConversionRejected,
+    ],
+    path: "import-review",
+  },
   {
     id: "changes",
     label: "변경",
@@ -44,51 +69,31 @@ const gates: Gate[] = [
       CompletionBlockingCode.PendingChangeRequests,
       CompletionBlockingCode.PendingChangeProposals,
     ],
+    path: "changes",
   },
   {
     id: "relationships",
     label: "관계",
     detail: "관계 후보를 확정 또는 제외합니다.",
     codes: [CompletionBlockingCode.PendingRelationshipCandidates],
+    path: "impact",
   },
   {
     id: "impacts",
     label: "영향",
     detail: "영향 후보와 필요한 수정 결정을 닫습니다.",
     codes: [CompletionBlockingCode.PendingImpactCandidates],
+    path: "impact",
   },
   {
     id: "evidence",
     label: "근거",
-    detail: "근거 후보를 검토하고 연결 상태를 확정합니다.",
-    codes: [CompletionBlockingCode.PendingEvidenceCandidates],
-  },
-  {
-    id: "freshness",
-    label: "오래됨",
-    detail: "오래된 근거를 갱신하거나 검토합니다.",
-    codes: [CompletionBlockingCode.StaleEvidence],
-  },
-  {
-    id: "automatic-format",
-    label: "자동 서식",
-    detail: "동일 형식 산출의 자동 서식 검사를 통과해야 합니다.",
+    detail: "근거 후보와 오래된 근거를 모두 검토합니다.",
     codes: [
-      CompletionBlockingCode.FormatResultNotPassed,
-      CompletionBlockingCode.AutomaticCheckIncomplete,
+      CompletionBlockingCode.PendingEvidenceCandidates,
+      CompletionBlockingCode.StaleEvidence,
     ],
-  },
-  {
-    id: "visual-comparison",
-    label: "시각 비교",
-    detail: "사람이 원본과 산출을 시각적으로 검토해야 합니다.",
-    codes: [CompletionBlockingCode.VisualReviewIncomplete],
-  },
-  {
-    id: "differences",
-    label: "미해결 차이",
-    detail: "서식 비교에서 남은 차이를 모두 해결합니다.",
-    codes: [CompletionBlockingCode.UnresolvedFormatDifferences],
+    path: "evidence",
   },
   {
     id: "approvals",
@@ -98,6 +103,7 @@ const gates: Gate[] = [
       CompletionBlockingCode.ApprovalWorkflowMissing,
       CompletionBlockingCode.ApprovalStepsIncomplete,
     ],
+    path: "approvals",
   },
 ];
 
@@ -113,19 +119,8 @@ function countFor(gate: Gate, reasons: CompletionBlockingReason[]) {
     .reduce((total, reason) => total + reason.count, 0);
 }
 
-export function CompletionWorkspace() {
-  const [searchParams] = useState(
-    () =>
-      new URLSearchParams(
-        typeof window === "undefined" ? "" : window.location.search,
-      ),
-  );
-  const documentId = searchParams.get("documentId");
-  const externalResultId = searchParams.get("externalResultId");
-  const request =
-    documentId && externalResultId
-      ? { document_id: documentId, external_edit_result_id: externalResultId }
-      : null;
+export function CompletionWorkspace({ documentId }: { documentId: string }) {
+  const [project, setProject] = useState<LatexProjectResponse | null>(null);
   const [evaluation, setEvaluation] = useState<CompletionEvaluation | null>(
     null,
   );
@@ -134,64 +129,71 @@ export function CompletionWorkspace() {
     "evaluate" | "complete" | "export" | null
   >(null);
   const [error, setError] = useState<string | null>(null);
+  const [empty, setEmpty] = useState<string | null>(null);
   const [completion, setCompletion] =
     useState<DocumentCompletionResponse | null>(null);
-  const [showFixture, setShowFixture] = useState(false);
 
   const evaluate = useCallback(async () => {
-    if (showFixture) {
-      setEvaluation(fixtureEvaluation);
-      return;
-    }
-    if (!request) {
-      setEvaluation(null);
-      return;
-    }
     setAction("evaluate");
     setLoading(true);
     setError(null);
+    setEmpty(null);
     try {
+      const projectResponse = await latexApi.getLatexProject({ documentId });
+      setProject(projectResponse.data);
       const response = await completionApi.evaluateDocumentCompletion({
-        completionRequest: request,
+        completionRequest: {
+          document_id: documentId,
+          latex_revision_id: projectResponse.data.revision_id,
+        },
       });
       setEvaluation(response.data);
     } catch (requestError) {
+      setProject(null);
+      setEvaluation(null);
+      setEmpty(
+        "완료 대상으로 평가할 LaTeX 정본이 없습니다. 원본 검증과 작업대 컴파일을 먼저 완료하세요.",
+      );
       setError(`완료 조건 평가가 실패했습니다: ${errorMessage(requestError)}`);
     } finally {
       setLoading(false);
       setAction(null);
     }
-  }, [request, showFixture]);
+  }, [documentId]);
 
   useEffect(() => {
     void evaluate();
   }, [evaluate]);
 
   const reasons = evaluation?.blocking_reasons ?? [];
-  const totalBlockers = reasons.reduce(
+  const alreadyCompleted = reasons.some(
+    (reason) => reason.code === CompletionBlockingCode.DocumentAlreadyCompleted,
+  );
+  const activeReasons = reasons.filter(
+    (reason) => reason.code !== CompletionBlockingCode.DocumentAlreadyCompleted,
+  );
+  const totalBlockers = activeReasons.reduce(
     (total, reason) => total + reason.count,
     0,
   );
-  const boundaryBlockers = reasons.filter(
-    (reason) =>
-      reason.code === CompletionBlockingCode.ScannedPdf ||
-      reason.code === CompletionBlockingCode.CrossFormatResult ||
-      reason.code === CompletionBlockingCode.UnsupportedOriginalFormat,
-  );
-  const isBlocked = totalBlockers > 0;
+  const isBlocked = totalBlockers > 0 || alreadyCompleted;
   const gateStates = useMemo(
-    () => gates.map((gate) => ({ gate, count: countFor(gate, reasons) })),
-    [reasons],
+    () =>
+      gates.map((gate) => ({
+        gate,
+        count: countFor(gate, activeReasons),
+      })),
+    [activeReasons],
   );
 
-  if (!evaluation) {
+  if (!evaluation || !project) {
     return (
       <div className={styles.workspace} id="completion-workspace">
         <header className={styles.intro} aria-busy={loading}>
           <h1>최종 완료 판단</h1>
           {loading && (
             <output className={styles.loading}>
-              완료 조건을 평가 중입니다.
+              LaTeX 정본과 완료 조건을 평가 중입니다.
             </output>
           )}
           {error && (
@@ -199,50 +201,48 @@ export function CompletionWorkspace() {
               {error}
             </p>
           )}
-          {!loading && !error && (
-            <>
-              <p>
-                URL에 documentId와 externalResultId를 지정해 완료 조건을
-                평가하세요.
-              </p>
-              <button onClick={() => setShowFixture(true)} type="button">
-                시안 보기
-              </button>
-            </>
+          {!loading && (
+            <div>
+              <p>{empty ?? "완료 조건을 평가할 정본을 찾지 못했습니다."}</p>
+              <a href={`/documents/${documentId}/workbench/`}>
+                LaTeX 작업대 열기
+              </a>
+            </div>
           )}
         </header>
       </div>
     );
   }
 
+  const activeEvaluation = evaluation;
+
   async function complete() {
-    if (!request || isBlocked || completion) return;
+    if (isBlocked || completion) return;
     setAction("complete");
     setError(null);
     try {
       const response = await completionApi.completeDocument({
-        completionRequest: request,
+        completionRequest: {
+          document_id: activeEvaluation.document_id,
+          latex_revision_id: activeEvaluation.latex_revision_id,
+        },
       });
       setCompletion(response.data);
       await evaluate();
     } catch (requestError) {
-      setError(
-        `CompletionApi 최종 완료 요청이 실패했습니다: ${errorMessage(requestError)}`,
-      );
+      setError(`최종 완료 요청이 실패했습니다: ${errorMessage(requestError)}`);
     } finally {
       setAction(null);
     }
   }
 
   async function downloadExport() {
-    if (!completion) return;
+    if (!completion && !alreadyCompleted) return;
     setAction("export");
     setError(null);
     try {
       const response = await completionApi.downloadApprovalExport(
-        {
-          documentId: completion.document_id,
-        },
+        { documentId },
         { responseType: "blob" },
       );
       const blob =
@@ -252,12 +252,12 @@ export function CompletionWorkspace() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${completion.document_id}_승인완료.${completion.original_format}`;
+      link.download = `${documentId}_승인완료.pdf`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (requestError) {
       setError(
-        `CompletionApi 승인 산출 다운로드 요청이 실패했습니다: ${errorMessage(requestError)}`,
+        `승인 PDF 다운로드 요청이 실패했습니다: ${errorMessage(requestError)}`,
       );
     } finally {
       setAction(null);
@@ -268,21 +268,20 @@ export function CompletionWorkspace() {
     <div className={styles.workspace} id="completion-workspace">
       <header className={styles.intro}>
         <div>
-          <p className={styles.eyebrow}>
-            Phase 1 완료 게이트 ·{" "}
-            {showFixture && (
-              <span className={styles.fixtureBadge}>Fixture</span>
-            )}
-          </p>
-          <h1>{evaluation.document_id} · 최종 완료 판단</h1>
+          <p className={styles.eyebrow}>최종 완료 게이트</p>
+          <h1>최종 완료 판단</h1>
           <p>
-            모든 게이트를 통과한 뒤에만 사람의 최종 책임으로 문서를 완료합니다.
+            최신 LaTeX 정본과 그 정본에서 컴파일한 PDF를 고정한 뒤 모든 게이트를
+            평가합니다.
           </p>
         </div>
         <div className={styles.outputFormat}>
           <span>승인 산출 형식</span>
-          <strong>DOCX · 원본과 동일 형식</strong>
-          <small>교차 형식 변환 산출은 완료할 수 없습니다.</small>
+          <strong>컴파일 PDF</strong>
+          <small title={project.compiled_pdf_sha256 ?? undefined}>
+            정본 {project.revision_id.slice(0, 8)} · PDF 해시{" "}
+            {project.compiled_pdf_sha256?.slice(0, 12) ?? "없음"}
+          </small>
         </div>
       </header>
 
@@ -297,15 +296,15 @@ export function CompletionWorkspace() {
 
       <section className={styles.boundary} aria-labelledby="boundary-heading">
         <div>
-          <p className={styles.eyebrow}>입력·산출 경계</p>
-          <h2 id="boundary-heading">스캔 PDF와 교차 형식 산출은 차단됩니다</h2>
+          <p className={styles.eyebrow}>정본·산출 경계</p>
+          <h2 id="boundary-heading">
+            최신 LaTeX 리비전과 정확한 PDF만 산출합니다
+          </h2>
         </div>
         <p>
-          편집 가능한 원본과 동일한 형식의 외부 편집 결과만 완료 대상으로
-          평가합니다.{" "}
-          {boundaryBlockers.length > 0
-            ? `현재 경계 차단 ${boundaryBlockers.reduce((total, reason) => total + reason.count, 0)}건`
-            : "현재 경계 차단 없음"}
+          DOCX 원본, PDF 참조 입력 또는 과거 컴파일 결과는 승인 산출로 사용할 수
+          없습니다. 현재 완료 대상은{" "}
+          <code>{activeEvaluation.latex_revision_id}</code>입니다.
         </p>
       </section>
 
@@ -316,7 +315,9 @@ export function CompletionWorkspace() {
             <h2 id="gates-heading">완료 게이트</h2>
           </div>
           <strong
-            className={isBlocked ? styles.blockedCount : styles.clearCount}
+            className={
+              totalBlockers > 0 ? styles.blockedCount : styles.clearCount
+            }
           >
             차단 {totalBlockers}건
           </strong>
@@ -336,6 +337,11 @@ export function CompletionWorkspace() {
                 {count}건
               </span>
               <b>{count > 0 ? "차단" : "통과"}</b>
+              {count > 0 && (
+                <a href={`/documents/${documentId}/${gate.path}/`}>
+                  해결 화면으로 이동
+                </a>
+              )}
             </li>
           ))}
         </ol>
@@ -349,9 +355,8 @@ export function CompletionWorkspace() {
           <p className={styles.eyebrow}>승인과 완료의 구분</p>
           <h2 id="final-heading">승인 단계 완료는 최종 완료가 아닙니다</h2>
           <p>
-            단계 승인은 하나의 게이트입니다. 모든 게이트가 통과한 뒤 담당자가
-            최종 완료를 실행하며, 그 판단과 산출에 대한 최종 책임은 사람에게
-            있습니다.
+            모든 게이트가 통과한 뒤 담당자가 최종 완료를 실행하며, 완료 기록은
+            정확한 LaTeX 리비전과 컴파일 PDF 해시에 고정됩니다.
           </p>
         </div>
         <div className={styles.actions}>
@@ -359,30 +364,34 @@ export function CompletionWorkspace() {
             {action === "evaluate" ? "재평가 중" : "완료 조건 재평가"}
           </button>
           <button
-            disabled={
-              !request || isBlocked || action !== null || completion !== null
-            }
+            disabled={isBlocked || action !== null || completion !== null}
             onClick={complete}
             type="button"
           >
             {action === "complete"
               ? "최종 완료 처리 중"
-              : "사람의 최종 책임으로 완료"}
+              : alreadyCompleted
+                ? "완료됨"
+                : "사람의 최종 책임으로 완료"}
           </button>
         </div>
       </section>
 
-      {completion && (
+      {(completion || alreadyCompleted) && (
         <section className={styles.completed} aria-live="polite">
           <div>
             <p className={styles.eyebrow}>최종 완료</p>
             <h2>문서 완료가 기록되었습니다</h2>
             <p>
-              {completion.completed_by_id} ·{" "}
-              {new Intl.DateTimeFormat("ko-KR", {
-                dateStyle: "medium",
-                timeStyle: "short",
-              }).format(new Date(completion.completed_at))}
+              {completion
+                ? `${completion.completed_by_id} · ${new Intl.DateTimeFormat(
+                    "ko-KR",
+                    {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    },
+                  ).format(new Date(completion.completed_at))}`
+                : "저장된 완료 기록의 컴파일 PDF를 다운로드할 수 있습니다."}
             </p>
           </div>
           <button
@@ -390,9 +399,7 @@ export function CompletionWorkspace() {
             onClick={downloadExport}
             type="button"
           >
-            {action === "export"
-              ? "다운로드 준비 중"
-              : `승인 산출 다운로드 · ${completion.original_format.toUpperCase()}`}
+            {action === "export" ? "다운로드 준비 중" : "승인 PDF 다운로드"}
           </button>
         </section>
       )}

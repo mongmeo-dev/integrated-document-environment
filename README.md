@@ -2,7 +2,7 @@
 
 뉴다이브 임직원이 소프트웨어 의료기기 개발 과정의 GMP 문서를 검토하고 변경 영향, 제품·검증 근거와 승인 이력을 관리하기 위한 내부 문서 작업 환경입니다.
 
-이 시스템은 DOCX/PDF 편집기를 제공하지 않습니다. 원본과 외부 편집 결과를 수집하고, 서식 차이와 관련 문서·근거 후보를 검토한 뒤 사람이 최종 확정하는 흐름을 제공합니다.
+이 시스템은 LaTeX 프로젝트 번들(진입점 `.tex`, 자산, 참고문헌, 스타일 파일)을 정본으로 편집하고 컴파일된 PDF를 검토·승인하는 문서 작업 환경입니다. Web에서 LaTeX 원본을 편집하고 PDF 미리보기를 검토하며, 관련 문서·근거 후보와 승인 이력은 사람이 최종 확정합니다.
 
 > 현재 저장소에는 Phase1 수직 슬라이스와 개발 환경이 포함됩니다. 전체 제품
 > 요구사항은 [PRD](docs/tasks/phase1_prd/PRD.md), 기술 결정은
@@ -11,10 +11,11 @@
 ## 주요 원칙
 
 - 등록된 원본 파일은 변경하거나 덮어쓰지 않습니다.
-- DOCX는 DOCX로, 텍스트 PDF는 PDF로만 외부 편집 결과를 재수집합니다.
-- 자동 서식 검사와 사용자의 시각 비교를 모두 완료해야 합니다.
+- LaTeX 프로젝트 번들은 편집 가능한 정본이고 컴파일 PDF는 재현 가능한 파생 검토·승인 산출물입니다.
+- DOCX는 불변 원본으로 보존한 뒤 LaTeX 프로젝트로 한 번만 자동 변환합니다. 각 DOCX 기반 revision은 원본·LaTeX 정본·컴파일 PDF를 대조한 사람의 사유 기반 수락 없이는 확정되지 않습니다.
+- PDF는 참조·분석 입력으로 보존하며 주 편집 원본이나 왕복 편집 형식으로 사용하지 않습니다.
 - 수정안, 문서 관계, 영향과 근거는 사용자가 확정하기 전까지 후보입니다.
-- 미해결 서식 차이 또는 미처리 후보가 있으면 승인과 산출을 차단합니다.
+- DOCX 기반 최신 revision의 검토 대기·반려, 컴파일 오류 또는 미처리 후보가 있으면 완료와 산출을 차단합니다.
 - AI는 후보 생성에만 사용하며 승인과 완료 여부를 결정하지 않습니다.
 - 서비스는 뉴다이브 내부망에서만 제공합니다.
 
@@ -25,10 +26,12 @@
 | API | Python 3.14, FastAPI, Pydantic, SQLAlchemy, Alembic |
 | 비동기 처리 | Celery, Redis |
 | 데이터베이스 | PostgreSQL, pgvector |
-| Web | Next.js static export, React, TypeScript |
+| Web | Next.js standalone server, React, TypeScript |
 | UI 및 상태 | CSS Modules, TanStack Query |
 | API client | OpenAPI Generator `typescript-axios` |
 | AI | OpenAI Responses API, Structured Outputs |
+| DOCX 변환 | Pandoc 3.10.2 |
+| LaTeX 컴파일 | Tectonic 0.17.0 |
 | 파일 저장 | Naver Cloud Object Storage |
 | Python 도구 | Poetry, Ruff, pytest |
 | Web 도구 | pnpm, Biome, TypeScript compiler |
@@ -38,7 +41,7 @@
 ```text
 apps/
   api/                 FastAPI 도메인 API, migration, 통합 테스트
-  web/                 Next.js 정적 문서 워크벤치와 생성 client
+  web/                 Next.js LaTeX 편집·PDF 미리보기 문서 워크벤치와 생성 client
 docs/
   TECH_STACK.md        기술 스택과 설계 결정
   tasks/phase1_prd/    Phase1 요구사항과 원천 작업 문서
@@ -54,6 +57,9 @@ fixture/
 
 - [mise](https://mise.jdx.dev/)
 - Docker
+- Pandoc 3.10.2
+- Tectonic 0.17.0
+- Noto Sans CJK 20240730
 
 `mise.toml`에서 다음 도구 버전을 관리합니다.
 
@@ -76,10 +82,13 @@ pnpm --dir apps/web install --frozen-lockfile
 ```dotenv
 OPENAI_API_KEY=
 IDE_CORS_ORIGINS=["http://localhost:3000"]
+IDE_TECTONIC_ONLY_CACHED=false
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
-`NEXT_PUBLIC_API_BASE_URL`은 정적 Web build 시 산출물에 포함되므로 환경별로 별도 build해야 합니다. 비밀값을 `NEXT_PUBLIC_*` 변수에 넣어서는 안 됩니다.
+`NEXT_PUBLIC_API_BASE_URL`은 Web build 시 산출물에 포함되므로 환경별로 별도 build해야 합니다. 비밀값을 `NEXT_PUBLIC_*` 변수에 넣어서는 안 됩니다.
+
+API production image는 Pandoc, Tectonic, Noto Sans CJK 및 컴파일 resource cache를 image build 시 고정하고 `IDE_TECTONIC_ONLY_CACHED=true`로 실행합니다. 로컬 직접 실행은 기본값 `false`를 사용해 필요한 Tectonic resource를 최초 컴파일 때 받을 수 있습니다.
 
 ### 로컬 인프라
 
@@ -120,6 +129,28 @@ mise run dev:api
 - API: <http://localhost:8000>
 - API 문서: <http://localhost:8000/docs>
 - 상태 확인: <http://localhost:8000/api/v1/health>
+
+### Web 작업 흐름
+
+Web은 문서를 먼저 선택한 뒤 모든 검토 단계에서 같은 문서 맥락을 유지합니다.
+
+- `/`: 현재 사용자의 문서 작업 큐
+- `/documents/`: 문서 검색, 상태 필터와 등록
+- `/documents/{documentId}/`: 문서 상태와 다음 작업
+- `/documents/{documentId}/validation/`: 원본 입력 검증과 지원 범위 안내
+- `/documents/{documentId}/import-review/`: DOCX 원본·LaTeX 정본·컴파일 PDF 대조와 사람의 사유 기반 결정
+- `/documents/{documentId}/changes/`: 변경 요청과 수정안 결정
+- `/documents/{documentId}/workbench/`: LaTeX 프로젝트 번들 원본 편집과 컴파일 PDF 미리보기
+- `/documents/{documentId}/impact/`: 문서 관계와 변경 영향 검토
+- `/documents/{documentId}/evidence/`: 제품·검증 근거 검토
+- `/documents/{documentId}/approvals/`: 문서별 순차 승인
+- `/documents/{documentId}/completion/`: 최종 완료 게이트와 승인 산출
+- `/documents/{documentId}/history/`: 선택 문서 감사 이력
+- `/history/`: 전체 문서 감사 이력
+
+동적 문서 경로를 서버에서 처리하기 위해 Web production build는 Next.js
+`standalone` 출력으로 실행합니다. Docker image는 생성된 `server.js`를
+`0.0.0.0:8080`에서 실행합니다.
 
 ### 내부 사용자 준비
 
@@ -177,18 +208,16 @@ Web lint와 format에는 Biome만 사용합니다.
 pnpm --dir apps/web format
 ```
 
-## 정적 Web 배포
+## Web 배포
 
-Web은 Next.js server 없이 정적 파일로 배포합니다.
+Web은 Next.js `standalone` 서버로 배포합니다.
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL=https://api.example.internal \
   pnpm --dir apps/web build
 ```
 
-산출물은 `apps/web/out/`에 생성됩니다. 이 디렉터리의 내용을 Naver Cloud Object Storage에 업로드하고 CDN origin으로 연결합니다. CDN과 Object Storage는 SPA fallback 대신 실제 생성된 경로와 `404.html`을 사용하도록 구성합니다.
-
-API origin은 Web origin을 CORS 허용 목록에 포함해야 하며, 인증 cookie를 사용할 때는 HTTPS와 credential 전달 설정을 유지해야 합니다.
+Docker image가 생성된 `server.js`를 실행합니다. API origin은 Web origin을 CORS 허용 목록에 포함해야 하며, 인증 cookie를 사용할 때는 HTTPS와 credential 전달 설정을 유지해야 합니다.
 
 ## Docker
 
@@ -199,7 +228,7 @@ docker build -t ide-api apps/api
 docker run --rm -p 8000:8000 ide-api
 ```
 
-Web image는 static export 결과를 비특권 nginx로 제공합니다. Object Storage/CDN 업로드 전 산출물 검증이나 컨테이너 기반 정적 배포에 사용할 수 있습니다.
+Web image는 Next.js standalone 서버로 동적 문서 경로를 제공합니다.
 
 ```bash
 docker build \

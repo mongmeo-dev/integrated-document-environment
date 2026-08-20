@@ -85,72 +85,15 @@
   font-weight: 700;
   padding: 10px 13px;
 }
-.lookup,
 .result,
 .boundary {
   background: white;
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-.lookup {
-  align-items: end;
-  display: grid;
-  gap: 18px;
-  grid-template-columns: minmax(210px, 0.7fr) minmax(400px, 1.5fr) auto;
-  padding: 20px;
-}
-.lookup h2,
 .boundary h2 {
   font-size: 15px;
   margin-bottom: 7px;
-}
-.lookup label {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-.lookupControls {
-  display: flex;
-  gap: 8px;
-}
-.lookup input {
-  border: 1px solid #aeb9c9;
-  border-radius: 4px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
-  min-width: 0;
-  padding: 10px;
-  width: 100%;
-}
-.lookup button {
-  background: #1f4f9a;
-  border: 1px solid #1f4f9a;
-  border-radius: 4px;
-  color: white;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 10px 14px;
-  white-space: nowrap;
-}
-.lookup button:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-.lookup form > p {
-  font-size: 11px;
-  margin: 6px 0 0;
-}
-.lookup .error {
-  color: #ae2737;
-  font-weight: 700;
-}
-.lookup > .fixtureButton {
-  align-self: center;
-  background: white;
-  border-color: #7d8ca1;
-  color: #344156;
 }
 .statusLegend {
   display: grid;
@@ -204,13 +147,6 @@
 }
 .empty strong {
   font-size: 15px;
-}
-.fixtureNotice {
-  background: #fff8df;
-  border: 1px solid #e4c66d;
-  color: #624b08;
-  font-size: 12px;
-  padding: 9px 11px;
 }
 .resultHeading {
   align-items: start;
@@ -328,6 +264,17 @@
   color: #6f3a42;
   font-size: 11px;
 }
+.nextStepLink {
+  background: #1f4f9a;
+  border-radius: 5px;
+  color: white;
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 16px;
+  padding: 10px 13px;
+  text-decoration: none;
+}
 .boundary {
   margin-top: 18px;
   overflow-x: auto;
@@ -352,13 +299,6 @@
   .heading {
     gap: 15px;
     flex-direction: column;
-  }
-  .lookup {
-    align-items: stretch;
-    grid-template-columns: 1fr;
-  }
-  .fixtureButton {
-    align-self: start;
   }
   .statusLegend {
     grid-template-columns: repeat(2, 1fr);

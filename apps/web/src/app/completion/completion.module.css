@@ -221,6 +221,21 @@
   font-size: 12px;
 }
 
+.gateList a {
+  align-self: end;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  grid-column: 1 / -1;
+}
+
+.intro a {
+  color: #1d4ed8;
+  display: inline-block;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
 .gateList .gateBlocked {
   border-top: 3px solid #c94b37;
 }
