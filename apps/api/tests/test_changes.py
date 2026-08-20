@@ -4,23 +4,17 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import select, text
 
 from ide_api.core.database import async_session
 from ide_api.core.security import hash_password
-from ide_api.domains.auth.models import User, UserSession
-from ide_api.domains.changes.models import ChangeProposal, ChangeRequest
+from ide_api.domains.auth.models import User
 from ide_api.domains.documents.models import Document, DocumentVersion
 
 
 async def _reset_change_data() -> tuple[UUID, UUID]:
     async with async_session() as session:
-        await session.execute(delete(ChangeProposal))
-        await session.execute(delete(ChangeRequest))
-        await session.execute(delete(DocumentVersion))
-        await session.execute(delete(Document))
-        await session.execute(delete(UserSession))
-        await session.execute(delete(User))
+        await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
 
         user = User(
             email="developer@neudive.com",

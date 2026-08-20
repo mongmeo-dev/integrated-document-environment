@@ -14,6 +14,7 @@ from ide_api.domains.documents.models import Document, DocumentVersion
 from ide_api.domains.evidence.models import DocumentEvidenceLink, EvidenceItem
 from ide_api.domains.formatting.models import ExternalEditResult, FormatCheck
 from ide_api.domains.impacts.models import DocumentImpact, DocumentRelationship
+from ide_api.domains.latex.models import LatexConversionReview, LatexRevision
 
 
 async def _create_history_data() -> tuple[UUID, str]:
@@ -139,7 +140,29 @@ async def _create_history_data() -> tuple[UUID, str]:
             completed_by_id=user.id,
             completed_at=now + timedelta(seconds=9),
         )
-        session.add_all([check, completion])
+        latex_revision = LatexRevision(
+            document_id=document.id,
+            source_object_key="private/history-source.zip",
+            source_sha256="2" * 64,
+            entrypoint="main.tex",
+            origin="docx_conversion",
+            conversion_status="accepted",
+            compile_status="succeeded",
+            compiled_pdf_object_key="private/history-preview.pdf",
+            compiled_pdf_sha256="3" * 64,
+            created_by_id=user.id,
+            created_at=now + timedelta(seconds=10),
+        )
+        session.add_all([check, completion, latex_revision])
+        await session.flush()
+        latex_review = LatexConversionReview(
+            revision_id=latex_revision.id,
+            decision="accepted",
+            reason="Conversion differences were reviewed.",
+            decided_by_id=user.id,
+            decided_at=now + timedelta(seconds=11),
+        )
+        session.add(latex_review)
         await session.commit()
         return document.id, user.email
 
@@ -174,14 +197,39 @@ def test_history_merges_persistent_domain_events_in_reverse_time_order(client: T
         "format_check_completed",
         "visual_review",
         "document_completion",
+        "latex_revision",
+        "latex_conversion_review",
     }
     approval = next(event for event in events if event["type"] == "approval_audit")
     assert approval["actor_id"] is not None
     assert approval["reason"] == "Approved after review."
     assert approval["before"] == {"status": "in_progress"}
     assert approval["after"] == {"status": "approved"}
-    assert all("object_key" not in event for event in events)
+    latex_revision = next(event for event in events if event["type"] == "latex_revision")
+    assert latex_revision["actor_id"] is not None
+    assert latex_revision["reason"] is None
+    assert latex_revision["after"] == {
+        "origin": "docx_conversion",
+        "conversion_status": "accepted",
+        "compile_status": "succeeded",
+        "source_sha256": "2" * 64,
+        "compiled_pdf_sha256": "3" * 64,
+    }
+    latex_review = next(event for event in events if event["type"] == "latex_conversion_review")
+    assert latex_review["actor_id"] is not None
+    assert latex_review["reason"] == "Conversion differences were reviewed."
+    assert latex_review["before"] == {"conversion_status": "pending_review"}
+    assert latex_review["after"] == {"conversion_status": "accepted"}
+    assert all("object_key" not in event and "source" not in event for event in events)
+    assert "private/history-source.zip" not in response.text
+    assert "private/history-preview.pdf" not in response.text
 
     filtered = client.get(f"/api/v1/history?document_id={document_id}&filter=approval_audit")
     assert filtered.status_code == 200
     assert [event["type"] for event in filtered.json()] == ["approval_audit"]
+
+    latex_filtered = client.get(
+        f"/api/v1/history?document_id={document_id}&filter=latex_conversion_review"
+    )
+    assert latex_filtered.status_code == 200
+    assert [event["type"] for event in latex_filtered.json()] == ["latex_conversion_review"]

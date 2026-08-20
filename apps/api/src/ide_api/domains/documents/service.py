@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from pathlib import PurePath
 from tempfile import SpooledTemporaryFile
+from typing import BinaryIO
 from uuid import UUID
 
 from fastapi import UploadFile
@@ -24,9 +27,17 @@ from ide_api.infrastructure.object_storage import ObjectStorage
 
 _CHUNK_SIZE = 1024 * 1024
 _ALLOWED_FILE_TYPES = {
-    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ".pdf": "application/pdf",
+    ".docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+    ".pdf": {"application/pdf"},
+    ".tex": {"text/x-tex", "application/x-tex", "text/plain"},
+    ".zip": {"application/zip"},
 }
+
+
+@contextmanager
+def _temporary_binary_file() -> Iterator[BinaryIO]:
+    with SpooledTemporaryFile(max_size=_CHUNK_SIZE, mode="w+b") as content:
+        yield content
 
 
 class DocumentUploadError(Exception):
@@ -123,6 +134,42 @@ class DocumentService:
             raise DocumentNotFoundError
         return self.to_response(document)
 
+    async def get_original(self, document_id: UUID) -> tuple[BinaryIO, str, str, ExitStack]:
+        document = await self._repository.get_by_id(document_id)
+        if document is None or not document.versions:
+            raise DocumentNotFoundError
+        if self._storage is None:
+            raise DocumentStorageError("Object storage is not configured.")
+
+        version = document.versions[0]
+        resources = ExitStack()
+        content = resources.enter_context(_temporary_binary_file())
+        digest = hashlib.sha256()
+        size_bytes = 0
+        try:
+            stream = self._storage.download(version.object_key)
+            try:
+                while chunk := stream.read(_CHUNK_SIZE):
+                    size_bytes += len(chunk)
+                    if size_bytes > self._settings.max_upload_size_bytes:
+                        raise DocumentStorageError("Stored original exceeds the maximum size.")
+                    digest.update(chunk)
+                    content.write(chunk)
+            finally:
+                close = getattr(stream, "close", None)
+                if close is not None:
+                    close()
+            if size_bytes != version.size_bytes or digest.hexdigest() != version.sha256:
+                raise DocumentStorageError("Stored original failed integrity verification.")
+            content.seek(0)
+            return content, version.original_filename, version.media_type, resources
+        except DocumentStorageError:
+            resources.close()
+            raise
+        except Exception as error:
+            resources.close()
+            raise DocumentStorageError("Unable to retrieve the stored original.") from error
+
     async def validate_original(self, document_id: UUID) -> Document:
         document = await self._repository.get_by_id(document_id)
         if document is None or not document.versions:
@@ -138,7 +185,9 @@ class DocumentService:
         await self._commit_validation_state()
 
         try:
-            result = self._validate_stored_original(version.object_key, version.media_type)
+            result = self._validate_stored_original(
+                version.object_key, version.original_filename, version.media_type
+            )
         except Exception as error:
             raise DocumentStorageError("Unable to retrieve the stored document.") from error
 
@@ -189,17 +238,20 @@ class DocumentService:
     def _validate_file_type(upload: UploadFile) -> tuple[str, str]:
         filename = upload.filename or ""
         extension = PurePath(filename).suffix.lower()
-        expected_media_type = _ALLOWED_FILE_TYPES.get(extension)
-        if expected_media_type is None or upload.content_type != expected_media_type:
+        allowed_media_types = _ALLOWED_FILE_TYPES.get(extension, set())
+        media_type = upload.content_type
+        if media_type is None or media_type not in allowed_media_types:
             raise DocumentUploadError(
                 "unsupported_file_type",
-                "Only DOCX and PDF files with matching media types are supported.",
+                "LaTeX projects are primary; DOCX is supported only as an import input. "
+                "Filename and media type must match.",
             )
-        return filename, expected_media_type
+        return filename, media_type
 
     def _validate_stored_original(
         self,
         object_key: str,
+        filename: str,
         media_type: str,
     ) -> DocumentValidationResult:
         if self._storage is None:
@@ -218,7 +270,7 @@ class DocumentService:
                         )
                     content.write(chunk)
                 content.seek(0)
-                return validate_document(content, media_type)
+                return validate_document(content, filename, media_type)
         finally:
             close = getattr(stream, "close", None)
             if close is not None:
@@ -233,23 +285,34 @@ class DocumentService:
 
     @staticmethod
     def _capabilities(input_kind: str | None) -> DocumentCapabilities:
-        if input_kind in {"editable_docx", "text_pdf"}:
+        if input_kind == "latex_project":
             return DocumentCapabilities(
                 analysis=True,
-                external_edit_round_trip=True,
-                format_comparison=True,
+                source_editing=True,
+                compilation=True,
+                conversion_review=False,
                 approved_output=True,
             )
-        if input_kind == "scanned_pdf":
+        if input_kind == "docx_import":
             return DocumentCapabilities(
                 analysis=True,
-                external_edit_round_trip=False,
-                format_comparison=False,
+                source_editing=True,
+                compilation=True,
+                conversion_review=True,
+                approved_output=False,
+            )
+        if input_kind in {"text_pdf", "scanned_pdf"}:
+            return DocumentCapabilities(
+                analysis=True,
+                source_editing=False,
+                compilation=False,
+                conversion_review=False,
                 approved_output=False,
             )
         return DocumentCapabilities(
             analysis=False,
-            external_edit_round_trip=False,
-            format_comparison=False,
+            source_editing=False,
+            compilation=False,
+            conversion_review=False,
             approved_output=False,
         )

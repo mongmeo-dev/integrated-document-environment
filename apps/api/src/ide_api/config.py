@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     session_cookie_name: str = "ide_session"
     session_ttl_seconds: int = 28800
     session_cookie_secure: bool = True
+    tectonic_only_cached: bool = False
     object_storage_endpoint_url: str = "https://kr.object.ncloudstorage.com"
     object_storage_bucket: str = "ide"
     object_storage_region: str = "kr-standard"

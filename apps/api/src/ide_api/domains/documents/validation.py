@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import BinaryIO
 from zipfile import BadZipFile, ZipFile
 
@@ -34,12 +35,25 @@ class DocumentValidationResult:
         return self.input_kind is not None
 
 
-def validate_document(content: BinaryIO, media_type: str) -> DocumentValidationResult:
-    if media_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+def validate_document(
+    content: BinaryIO, filename: str, media_type: str
+) -> DocumentValidationResult:
+    suffix = PurePosixPath(filename).suffix.lower()
+    if (
+        suffix == ".docx"
+        and media_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ):
         return validate_docx(content)
-    if media_type == "application/pdf":
+    if suffix == ".pdf" and media_type == "application/pdf":
         return validate_pdf(content)
-    return _rejected("unsupported_document", "The stored document type is not supported.")
+    if suffix == ".tex" and media_type in {"text/x-tex", "application/x-tex", "text/plain"}:
+        return validate_latex_source(content)
+    if suffix == ".zip" and media_type == "application/zip":
+        return validate_latex_project(content)
+    return _rejected(
+        "unsupported_document",
+        "LaTeX projects are primary; DOCX is supported only as an import input.",
+    )
 
 
 def validate_docx(content: BinaryIO) -> DocumentValidationResult:
@@ -47,7 +61,7 @@ def validate_docx(content: BinaryIO) -> DocumentValidationResult:
         content.seek(0)
         with ZipFile(content) as archive:
             entries = archive.infolist()
-            unsafe = _unsafe_archive(entries)
+            unsafe = _unsafe_archive(entries, "DOCX")
             if unsafe is not None:
                 return unsafe
             if any(entry.flag_bits & _ENCRYPTED_FLAG for entry in entries):
@@ -70,7 +84,59 @@ def validate_docx(content: BinaryIO) -> DocumentValidationResult:
     except BadZipFile, EOFError, OSError, RuntimeError, etree.XMLSyntaxError, ValueError:
         return _rejected("corrupt_document", "The DOCX file is corrupt.")
 
-    return DocumentValidationResult(input_kind="editable_docx")
+    return DocumentValidationResult(input_kind="docx_import")
+
+
+def validate_latex_source(content: BinaryIO) -> DocumentValidationResult:
+    try:
+        content.seek(0)
+        source = content.read().decode("utf-8")
+    except UnicodeDecodeError, OSError, ValueError:
+        return _rejected("invalid_latex_source", "The LaTeX source must be valid UTF-8.")
+
+    if "\x00" in source or "\\documentclass" not in source:
+        return _rejected(
+            "invalid_latex_source",
+            "The LaTeX source must contain a document class and no NUL bytes.",
+        )
+    return DocumentValidationResult(input_kind="latex_project")
+
+
+def validate_latex_project(content: BinaryIO) -> DocumentValidationResult:
+    try:
+        content.seek(0)
+        with ZipFile(content) as archive:
+            entries = archive.infolist()
+            unsafe = _unsafe_archive(entries, "LaTeX project")
+            if unsafe is not None:
+                return unsafe
+            if any(entry.flag_bits & _ENCRYPTED_FLAG for entry in entries):
+                return _rejected("encrypted_document", "Encrypted documents cannot be processed.")
+
+            corrupted_entry = archive.testzip()
+            if corrupted_entry is not None:
+                return _rejected(
+                    "corrupt_document", "The LaTeX project archive has an invalid CRC."
+                )
+
+            names = [entry.filename for entry in entries if not entry.is_dir()]
+            if "main.tex" in names:
+                return DocumentValidationResult(input_kind="latex_project")
+            tex_names = [name for name in names if name.lower().endswith(".tex")]
+            if not tex_names:
+                return _rejected(
+                    "missing_latex_entrypoint",
+                    "The LaTeX project must contain a .tex entrypoint.",
+                )
+            if len(tex_names) != 1:
+                return _rejected(
+                    "ambiguous_latex_entrypoint",
+                    "The LaTeX project has multiple possible .tex entrypoints.",
+                )
+    except BadZipFile, EOFError, OSError, RuntimeError, ValueError:
+        return _rejected("corrupt_document", "The LaTeX project archive is corrupt.")
+
+    return DocumentValidationResult(input_kind="latex_project")
 
 
 def validate_pdf(content: BinaryIO) -> DocumentValidationResult:
@@ -108,7 +174,7 @@ def validate_pdf(content: BinaryIO) -> DocumentValidationResult:
     )
 
 
-def _unsafe_archive(entries: list[object]) -> DocumentValidationResult | None:
+def _unsafe_archive(entries: list[object], document_type: str) -> DocumentValidationResult | None:
     total_uncompressed = 0
     seen_names: set[str] = set()
     for entry in entries:
@@ -116,26 +182,40 @@ def _unsafe_archive(entries: list[object]) -> DocumentValidationResult | None:
         if (
             not filename
             or filename.startswith(("/", "\\"))
+            or (len(filename) > 2 and filename[1:3] == ":/")
             or "\\" in filename
             or "\x00" in filename
             or any(part == ".." for part in filename.split("/"))
             or filename in seen_names
+            or _is_symlink(entry)
         ):
-            return _rejected("unsafe_archive", "The DOCX archive has unsafe entries.")
+            return _rejected("unsafe_archive", f"The {document_type} archive has unsafe entries.")
         seen_names.add(filename)
         if entry.is_dir():
             continue
         total_uncompressed += entry.file_size
         if total_uncompressed > _MAX_ZIP_UNCOMPRESSED_BYTES:
-            return _rejected("unsafe_archive", "The DOCX archive expands beyond the allowed size.")
+            return _rejected(
+                "unsafe_archive", f"The {document_type} archive expands beyond the allowed size."
+            )
         if entry.file_size and entry.compress_size == 0:
-            return _rejected("unsafe_archive", "The DOCX archive has an unsafe compression ratio.")
+            return _rejected(
+                "unsafe_archive",
+                f"The {document_type} archive has an unsafe compression ratio.",
+            )
         if (
             entry.compress_size
             and entry.file_size / entry.compress_size > _MAX_ZIP_COMPRESSION_RATIO
         ):
-            return _rejected("unsafe_archive", "The DOCX archive has an unsafe compression ratio.")
+            return _rejected(
+                "unsafe_archive",
+                f"The {document_type} archive has an unsafe compression ratio.",
+            )
     return None
+
+
+def _is_symlink(entry: object) -> bool:
+    return (entry.external_attr >> 16) & 0o170000 == 0o120000
 
 
 def _has_docx_main_content_type(content_types: etree._Element) -> bool:

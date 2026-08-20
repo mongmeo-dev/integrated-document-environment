@@ -7,8 +7,8 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **id** | **string** |  | [default to undefined]
 **document_id** | **string** |  | [default to undefined]
-**external_edit_result_id** | **string** |  | [default to undefined]
-**original_format** | **string** |  | [default to undefined]
+**latex_revision_id** | **string** |  | [default to undefined]
+**compiled_pdf_sha256** | **string** |  | [default to undefined]
 **completed_by_id** | **string** |  | [default to undefined]
 **completed_at** | **string** |  | [default to undefined]
 
@@ -20,8 +20,8 @@ import { DocumentCompletionResponse } from './api';
 const instance: DocumentCompletionResponse = {
     id,
     document_id,
-    external_edit_result_id,
-    original_format,
+    latex_revision_id,
+    compiled_pdf_sha256,
     completed_by_id,
     completed_at,
 };

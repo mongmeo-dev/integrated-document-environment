@@ -6,9 +6,9 @@ import {
   Configuration,
   DocumentsApi,
   EvidenceApi,
-  FormattingApi,
   HistoryApi,
   ImpactsApi,
+  LatexApi,
   SystemApi,
 } from "@/api/generated";
 
@@ -25,7 +25,7 @@ export const changesApi = new ChangesApi(configuration);
 export const completionApi = new CompletionApi(configuration);
 export const documentsApi = new DocumentsApi(configuration);
 export const evidenceApi = new EvidenceApi(configuration);
-export const formattingApi = new FormattingApi(configuration);
 export const historyApi = new HistoryApi(configuration);
 export const impactsApi = new ImpactsApi(configuration);
+export const latexApi = new LatexApi(configuration);
 export const systemApi = new SystemApi(configuration);

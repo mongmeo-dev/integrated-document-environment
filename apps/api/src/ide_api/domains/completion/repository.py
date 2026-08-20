@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ide_api.domains.approvals.models import ApprovalStep, ApprovalWorkflow
 from ide_api.domains.changes.models import ChangeProposal, ChangeRequest
 from ide_api.domains.completion.models import DocumentCompletion
-from ide_api.domains.documents.models import Document, DocumentVersion
+from ide_api.domains.documents.models import Document
 from ide_api.domains.evidence.models import DocumentEvidenceLink
-from ide_api.domains.formatting.models import ExternalEditResult, FormatCheck
 from ide_api.domains.impacts.models import DocumentImpact, DocumentRelationship
+from ide_api.domains.latex.models import LatexRevision
 
 
 @dataclass(frozen=True)
@@ -41,16 +41,18 @@ class CompletionRepository:
             )
         ) == 1
 
-    async def get_external_result(
-        self, external_edit_result_id: UUID
-    ) -> tuple[ExternalEditResult, DocumentVersion, FormatCheck | None] | None:
-        result = await self._session.execute(
-            select(ExternalEditResult, DocumentVersion, FormatCheck)
-            .join(DocumentVersion, ExternalEditResult.document_version_id == DocumentVersion.id)
-            .outerjoin(FormatCheck, FormatCheck.external_edit_result_id == ExternalEditResult.id)
-            .where(ExternalEditResult.id == external_edit_result_id)
+    async def get_latex_revision(self, latex_revision_id: UUID) -> LatexRevision | None:
+        return await self._session.scalar(
+            select(LatexRevision).where(LatexRevision.id == latex_revision_id)
         )
-        return result.one_or_none()
+
+    async def get_latest_latex_revision(self, document_id: UUID) -> LatexRevision | None:
+        return await self._session.scalar(
+            select(LatexRevision)
+            .where(LatexRevision.document_id == document_id)
+            .order_by(LatexRevision.created_at.desc(), LatexRevision.id.desc())
+            .limit(1)
+        )
 
     async def get_completion(self, document_id: UUID) -> DocumentCompletion | None:
         return await self._session.scalar(

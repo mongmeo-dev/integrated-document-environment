@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **document_id** | **string** |  | [default to undefined]
-**external_edit_result_id** | **string** |  | [default to undefined]
+**latex_revision_id** | **string** |  | [default to undefined]
 **blocking_reasons** | [**Array&lt;CompletionBlockingReason&gt;**](CompletionBlockingReason.md) |  | [optional] [default to undefined]
 
 ## Example
@@ -16,7 +16,7 @@ import { CompletionEvaluation } from './api';
 
 const instance: CompletionEvaluation = {
     document_id,
-    external_edit_result_id,
+    latex_revision_id,
     blocking_reasons,
 };
 ```

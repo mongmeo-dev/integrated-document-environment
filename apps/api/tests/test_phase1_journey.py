@@ -13,13 +13,15 @@ from ide_api.core.security import hash_password
 from ide_api.domains.auth.models import User
 from ide_api.domains.completion import router as completion_router
 from ide_api.domains.documents import router as documents_router
-from ide_api.domains.formatting import comparison as formatting_comparison
-from ide_api.domains.formatting import router as formatting_router
+from ide_api.domains.latex.bundle import build_single_file_bundle
+from ide_api.domains.latex.compilation import LatexCompilationResult, TectonicCompiler
+from ide_api.domains.latex.conversion import PandocDocxConverter
 
 DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PASSWORD = "phase1-password"
 AUTHOR_EMAIL = "phase1-author@example.com"
 APPROVER_EMAIL = "phase1-approver@example.com"
+COMPILED_PDF = b"%PDF-1.7\nPhase 1 compiled PDF\n"
 
 
 class FakeObjectStorage:
@@ -64,8 +66,21 @@ def phase1_client(
     storage = FakeObjectStorage()
     client.app.dependency_overrides[documents_router.get_object_storage] = lambda: storage
     client.app.dependency_overrides[completion_router._storage] = lambda: storage
-    monkeypatch.setattr(formatting_router, "ObjectStorage", lambda: storage)
-    monkeypatch.setattr(formatting_comparison, "ObjectStorage", lambda: storage)
+    monkeypatch.setattr(
+        PandocDocxConverter,
+        "convert",
+        lambda _self, _content: build_single_file_bundle(
+            b"\\documentclass{article}\n\\begin{document}Phase 1 document\\end{document}\n"
+        ),
+    )
+    monkeypatch.setattr(
+        TectonicCompiler,
+        "compile",
+        lambda _self, _bundle: LatexCompilationResult(
+            pdf=COMPILED_PDF,
+            log="compiled",
+        ),
+    )
     yield client, author_id, approver_id
     client.app.dependency_overrides.pop(documents_router.get_object_storage, None)
     client.app.dependency_overrides.pop(completion_router._storage, None)
@@ -98,7 +113,6 @@ def test_phase1_internal_docx_journey_over_http(
     assert registered.status_code == 202
     document = registered.json()
     document_id = document["id"]
-    document_version_id = document["original_file"]["id"]
     assert document["creator"]["id"] == author_id
 
     listed = client.get("/api/v1/documents", params={"query": "phase1"})
@@ -108,6 +122,20 @@ def test_phase1_internal_docx_journey_over_http(
     validated = client.post(f"/api/v1/documents/{document_id}/validate")
     assert validated.status_code == 200
     assert validated.json()["status"] == "ready"
+    project = client.get(f"/api/v1/documents/{document_id}/latex")
+    assert project.status_code == 200
+    revision_id = project.json()["revision_id"]
+    assert project.json()["conversion_status"] == "pending_review"
+    reviewed = client.post(
+        f"/api/v1/documents/{document_id}/latex/conversion-reviews",
+        json={
+            "expected_revision_id": revision_id,
+            "decision": "accepted",
+            "reason": "원본 DOCX와 변환된 LaTeX 및 컴파일 PDF를 검토했습니다.",
+        },
+    )
+    assert reviewed.status_code == 200
+    assert reviewed.json()["conversion_status"] == "accepted"
 
     change = client.post(
         "/api/v1/changes",
@@ -251,26 +279,10 @@ def test_phase1_internal_docx_journey_over_http(
     assert second_approval.json()["completed_at"] is not None
     assert second_approval.json()["steps"][1]["assignee_id"] == approver_id
 
-    external = client.post(
-        "/api/v1/formatting/external-results",
-        data={"document_id": document_id, "document_version_id": document_version_id},
-        files={"file": ("phase1.docx", source, DOCX_MEDIA_TYPE)},
-    )
-    assert external.status_code == 202
-    external_id = external.json()["id"]
-    assert external.json()["created_by_id"] == approver_id
-    automatic = client.post(f"/api/v1/formatting/external-results/{external_id}/automatic-check")
-    assert automatic.status_code == 200
-    assert automatic.json()["automatic_check_completed"] is True
-    assert automatic.json()["unresolved_difference_count"] == 0
-    visual = client.patch(
-        f"/api/v1/formatting/external-results/{external_id}/visual-review",
-        json={"visual_review": "passed"},
-    )
-    assert visual.status_code == 200
-    assert visual.json()["visual_review"] == "passed"
-
-    completion_payload = {"document_id": document_id, "external_edit_result_id": external_id}
+    completion_payload = {
+        "document_id": document_id,
+        "latex_revision_id": revision_id,
+    }
     evaluated = client.post("/api/v1/completion/evaluate", json=completion_payload)
     assert evaluated.status_code == 200
     assert evaluated.json()["blocking_reasons"] == []
@@ -280,4 +292,5 @@ def test_phase1_internal_docx_journey_over_http(
     assert completed.json()["completed_at"] is not None
     exported = client.get(f"/api/v1/completion/documents/{document_id}/export")
     assert exported.status_code == 200
-    assert exported.content == source
+    assert exported.content == COMPILED_PDF
+    assert source in FakeObjectStorage.objects.values()

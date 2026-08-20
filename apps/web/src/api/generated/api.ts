@@ -85,11 +85,6 @@ export interface ApprovalWorkflowResponse {
 }
 
 
-export interface BodyCompleteExternalResultVisualReview {
-    'visual_review': VisualReviewStatus;
-}
-
-
 
 export const CandidateStatus = {
     Candidate: 'candidate',
@@ -202,17 +197,27 @@ export interface ChangeRequestTransition {
 
 
 
+export const CompileStatus = {
+    Pending: 'pending',
+    Succeeded: 'succeeded',
+    Failed: 'failed',
+} as const;
+
+export type CompileStatus = typeof CompileStatus[keyof typeof CompileStatus];
+
+
+
 export const CompletionBlockingCode = {
     DocumentNotFound: 'document_not_found',
-    ExternalEditResultNotFound: 'external_edit_result_not_found',
-    ExternalEditResultDocumentMismatch: 'external_edit_result_document_mismatch',
-    ScannedPdf: 'scanned_pdf',
-    UnsupportedOriginalFormat: 'unsupported_original_format',
-    CrossFormatResult: 'cross_format_result',
-    FormatResultNotPassed: 'format_result_not_passed',
-    AutomaticCheckIncomplete: 'automatic_check_incomplete',
-    VisualReviewIncomplete: 'visual_review_incomplete',
-    UnresolvedFormatDifferences: 'unresolved_format_differences',
+    LatexProjectMissing: 'latex_project_missing',
+    LatexRevisionNotFound: 'latex_revision_not_found',
+    LatexRevisionDocumentMismatch: 'latex_revision_document_mismatch',
+    LatexRevisionNotLatest: 'latex_revision_not_latest',
+    CompileIncomplete: 'compile_incomplete',
+    CompileFailed: 'compile_failed',
+    CompiledPdfMissing: 'compiled_pdf_missing',
+    ConversionReviewPending: 'conversion_review_pending',
+    ConversionRejected: 'conversion_rejected',
     PendingChangeRequests: 'pending_change_requests',
     PendingChangeProposals: 'pending_change_proposals',
     PendingRelationshipCandidates: 'pending_relationship_candidates',
@@ -235,13 +240,40 @@ export interface CompletionBlockingReason {
 
 export interface CompletionEvaluation {
     'document_id': string;
-    'external_edit_result_id': string;
+    'latex_revision_id': string;
     'blocking_reasons'?: Array<CompletionBlockingReason>;
 }
 export interface CompletionRequest {
     'document_id': string;
-    'external_edit_result_id': string;
+    'latex_revision_id': string;
 }
+
+export const ConversionDecision = {
+    Accepted: 'accepted',
+    Rejected: 'rejected',
+} as const;
+
+export type ConversionDecision = typeof ConversionDecision[keyof typeof ConversionDecision];
+
+
+export interface ConversionReviewCreate {
+    'expected_revision_id': string;
+    'decision': ConversionDecision;
+    'reason': string;
+}
+
+
+
+export const ConversionStatus = {
+    NotRequired: 'not_required',
+    PendingReview: 'pending_review',
+    Accepted: 'accepted',
+    Rejected: 'rejected',
+} as const;
+
+export type ConversionStatus = typeof ConversionStatus[keyof typeof ConversionStatus];
+
+
 export interface DocumentCandidatesResponse {
     'document_id': string;
     'relationships'?: Array<DocumentRelationshipCandidateResponse>;
@@ -249,15 +281,16 @@ export interface DocumentCandidatesResponse {
 }
 export interface DocumentCapabilities {
     'analysis': boolean;
-    'external_edit_round_trip': boolean;
-    'format_comparison': boolean;
+    'source_editing': boolean;
+    'compilation': boolean;
+    'conversion_review': boolean;
     'approved_output': boolean;
 }
 export interface DocumentCompletionResponse {
     'id': string;
     'document_id': string;
-    'external_edit_result_id': string;
-    'original_format': string;
+    'latex_revision_id': string;
+    'compiled_pdf_sha256': string;
     'completed_by_id': string;
     'completed_at': string;
 }
@@ -427,72 +460,6 @@ export const EvidenceType = {
 export type EvidenceType = typeof EvidenceType[keyof typeof EvidenceType];
 
 
-export interface ExternalEditResultResponse {
-    'id': string;
-    'document_id': string;
-    'document_version_id': string;
-    'original_format': OriginalFormat;
-    'original_filename': string;
-    'media_type': string;
-    'size_bytes': number;
-    'sha256': string;
-    'object_key': string;
-    'status': ExternalEditResultStatus;
-    'created_by_id': string;
-    'created_at': string;
-    'format_check': FormatCheckResponse;
-}
-
-
-
-export const ExternalEditResultStatus = {
-    Uploaded: 'uploaded',
-    Checking: 'checking',
-    NeedsRevision: 'needs_revision',
-    Passed: 'passed',
-} as const;
-
-export type ExternalEditResultStatus = typeof ExternalEditResultStatus[keyof typeof ExternalEditResultStatus];
-
-
-export interface FormatCheckResponse {
-    'id': string;
-    'external_edit_result_id': string;
-    'automatic_check_completed': boolean;
-    'visual_review': VisualReviewStatus;
-    'unresolved_difference_count': number;
-    'created_at': string;
-    'updated_at': string;
-    'differences'?: Array<FormatDifferenceResponse>;
-}
-
-
-
-export const FormatDifferenceCategory = {
-    Font: 'font',
-    Color: 'color',
-    Table: 'table',
-    Margin: 'margin',
-    LineSpacing: 'line_spacing',
-    FontSize: 'font_size',
-    Other: 'other',
-} as const;
-
-export type FormatDifferenceCategory = typeof FormatDifferenceCategory[keyof typeof FormatDifferenceCategory];
-
-
-export interface FormatDifferenceResponse {
-    'id': string;
-    'format_check_id': string;
-    'category': FormatDifferenceCategory;
-    'location': string;
-    'original_value': string;
-    'proposed_value': string;
-    'resolved': boolean;
-    'created_at': string;
-}
-
-
 export interface HTTPValidationError {
     'detail'?: Array<ValidationError>;
 }
@@ -519,7 +486,8 @@ export interface HistoryEvent {
 }
 
 export const InputKind = {
-    EditableDocx: 'editable_docx',
+    LatexProject: 'latex_project',
+    DocxImport: 'docx_import',
     TextPdf: 'text_pdf',
     ScannedPdf: 'scanned_pdf',
 } as const;
@@ -527,6 +495,27 @@ export const InputKind = {
 export type InputKind = typeof InputKind[keyof typeof InputKind];
 
 
+export interface LatexProjectResponse {
+    'revision_id': string;
+    'document_id': string;
+    'entrypoint': string;
+    'source': string;
+    'source_sha256': string;
+    'files': Array<string>;
+    'origin': RevisionOrigin;
+    'conversion_status': ConversionStatus;
+    'compile_status': CompileStatus;
+    'compile_log': string | null;
+    'compiled_pdf_sha256'?: string | null;
+    'preview_available': boolean;
+    'created_at': string;
+}
+
+
+export interface LatexSourceRevisionCreate {
+    'expected_revision_id': string;
+    'source': string;
+}
 export interface LocationInner {
 }
 export interface LoginRequest {
@@ -541,15 +530,6 @@ export interface OriginalFileResponse {
     'sha256': string;
 }
 
-export const OriginalFormat = {
-    Docx: 'docx',
-    Pdf: 'pdf',
-} as const;
-
-export type OriginalFormat = typeof OriginalFormat[keyof typeof OriginalFormat];
-
-
-
 export const RelationshipType = {
     Hierarchy: 'hierarchy',
     Semantic: 'semantic',
@@ -558,6 +538,16 @@ export const RelationshipType = {
 } as const;
 
 export type RelationshipType = typeof RelationshipType[keyof typeof RelationshipType];
+
+
+
+export const RevisionOrigin = {
+    LatexUpload: 'latex_upload',
+    DocxConversion: 'docx_conversion',
+    WebEdit: 'web_edit',
+} as const;
+
+export type RevisionOrigin = typeof RevisionOrigin[keyof typeof RevisionOrigin];
 
 
 export interface UserResponse {
@@ -572,16 +562,6 @@ export interface ValidationError {
     'input'?: any;
     'ctx'?: object;
 }
-
-export const VisualReviewStatus = {
-    Pending: 'pending',
-    Passed: 'passed',
-    Failed: 'failed',
-} as const;
-
-export type VisualReviewStatus = typeof VisualReviewStatus[keyof typeof VisualReviewStatus];
-
-
 
 /**
  * ApprovalsApi - axios parameter creator
@@ -2750,6 +2730,41 @@ export const DocumentsApiAxiosParamCreator = function (configuration?: Configura
     return {
         /**
          *
+         * @summary Download Original Document
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        downloadOriginalDocument: async (documentId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'documentId' is not null or undefined
+            assertParamExists('downloadOriginalDocument', 'documentId', documentId)
+            const localVarPath = `/api/v1/documents/{document_id}/original`
+                .replace('{document_id}', encodeURIComponent(String(documentId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/octet-stream,application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         *
          * @summary Get Document
          * @param {string} documentId
          * @param {string | null} [ideSession]
@@ -2921,6 +2936,20 @@ export const DocumentsApiFp = function(configuration?: Configuration) {
     return {
         /**
          *
+         * @summary Download Original Document
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async downloadOriginalDocument(documentId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<File>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadOriginalDocument(documentId, ideSession, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DocumentsApi.downloadOriginalDocument']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         *
          * @summary Get Document
          * @param {string} documentId
          * @param {string | null} [ideSession]
@@ -2989,6 +3018,16 @@ export const DocumentsApiFactory = function (configuration?: Configuration, base
     return {
         /**
          *
+         * @summary Download Original Document
+         * @param {DocumentsApiDownloadOriginalDocumentRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        downloadOriginalDocument(requestParameters: DocumentsApiDownloadOriginalDocumentRequest, options?: RawAxiosRequestConfig): AxiosPromise<File> {
+            return localVarFp.downloadOriginalDocument(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
+        },
+        /**
+         *
          * @summary Get Document
          * @param {DocumentsApiGetDocumentRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
@@ -3036,6 +3075,15 @@ export const DocumentsApiFactory = function (configuration?: Configuration, base
 export interface DocumentsApiInterface {
     /**
      *
+     * @summary Download Original Document
+     * @param {DocumentsApiDownloadOriginalDocumentRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    downloadOriginalDocument(requestParameters: DocumentsApiDownloadOriginalDocumentRequest, options?: RawAxiosRequestConfig): AxiosPromise<File>;
+
+    /**
+     *
      * @summary Get Document
      * @param {DocumentsApiGetDocumentRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
@@ -3070,6 +3118,15 @@ export interface DocumentsApiInterface {
      */
     validateDocument(requestParameters: DocumentsApiValidateDocumentRequest, options?: RawAxiosRequestConfig): AxiosPromise<DocumentResponse>;
 
+}
+
+/**
+ * Request parameters for downloadOriginalDocument operation in DocumentsApi.
+ */
+export interface DocumentsApiDownloadOriginalDocumentRequest {
+    readonly documentId: string
+
+    readonly ideSession?: string | null
 }
 
 /**
@@ -3118,6 +3175,17 @@ export interface DocumentsApiValidateDocumentRequest {
  * DocumentsApi - object-oriented interface
  */
 export class DocumentsApi extends BaseAPI implements DocumentsApiInterface {
+    /**
+     *
+     * @summary Download Original Document
+     * @param {DocumentsApiDownloadOriginalDocumentRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public downloadOriginalDocument(requestParameters: DocumentsApiDownloadOriginalDocumentRequest, options?: RawAxiosRequestConfig) {
+        return DocumentsApiFp(this.configuration).downloadOriginalDocument(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      *
      * @summary Get Document
@@ -4386,783 +4454,6 @@ export class EvidenceApi extends BaseAPI implements EvidenceApiInterface {
 
 
 /**
- * FormattingApi - axios parameter creator
- */
-export const FormattingApiAxiosParamCreator = function (configuration?: Configuration) {
-    return {
-        /**
-         *
-         * @summary Collect External Edit Result
-         * @param {string} documentId
-         * @param {string} documentVersionId
-         * @param {File} file
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        collectExternalEditResult: async (documentId: string, documentVersionId: string, file: File, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'documentId' is not null or undefined
-            assertParamExists('collectExternalEditResult', 'documentId', documentId)
-            // verify required parameter 'documentVersionId' is not null or undefined
-            assertParamExists('collectExternalEditResult', 'documentVersionId', documentVersionId)
-            // verify required parameter 'file' is not null or undefined
-            assertParamExists('collectExternalEditResult', 'file', file)
-            const localVarPath = `/api/v1/formatting/external-results`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-            const localVarFormParams = new ((configuration && configuration.formDataCtor) || FormData)();
-
-
-            if (documentId !== undefined) {
-                localVarFormParams.append('document_id', documentId as any);
-            }
-
-            if (documentVersionId !== undefined) {
-                localVarFormParams.append('document_version_id', documentVersionId as any);
-            }
-
-            if (file !== undefined) {
-                localVarFormParams.append('file', file as any);
-            }
-            localVarHeaderParameter['Content-Type'] = 'multipart/form-data';
-            localVarHeaderParameter['Accept'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = localVarFormParams;
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         *
-         * @summary Complete Visual Review
-         * @param {string} externalEditResultId
-         * @param {BodyCompleteExternalResultVisualReview} bodyCompleteExternalResultVisualReview
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        completeExternalResultVisualReview: async (externalEditResultId: string, bodyCompleteExternalResultVisualReview: BodyCompleteExternalResultVisualReview, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'externalEditResultId' is not null or undefined
-            assertParamExists('completeExternalResultVisualReview', 'externalEditResultId', externalEditResultId)
-            // verify required parameter 'bodyCompleteExternalResultVisualReview' is not null or undefined
-            assertParamExists('completeExternalResultVisualReview', 'bodyCompleteExternalResultVisualReview', bodyCompleteExternalResultVisualReview)
-            const localVarPath = `/api/v1/formatting/external-results/{external_edit_result_id}/visual-review`
-                .replace('{external_edit_result_id}', encodeURIComponent(String(externalEditResultId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-            localVarHeaderParameter['Accept'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(bodyCompleteExternalResultVisualReview, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         *
-         * @summary Get External Edit Result
-         * @param {string} externalEditResultId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getExternalEditResult: async (externalEditResultId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'externalEditResultId' is not null or undefined
-            assertParamExists('getExternalEditResult', 'externalEditResultId', externalEditResultId)
-            const localVarPath = `/api/v1/formatting/external-results/{external_edit_result_id}`
-                .replace('{external_edit_result_id}', encodeURIComponent(String(externalEditResultId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Accept'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         *
-         * @summary Get Approval Allowed
-         * @param {string} externalEditResultId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getExternalResultApprovalAllowed: async (externalEditResultId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'externalEditResultId' is not null or undefined
-            assertParamExists('getExternalResultApprovalAllowed', 'externalEditResultId', externalEditResultId)
-            const localVarPath = `/api/v1/formatting/external-results/{external_edit_result_id}/approval-allowed`
-                .replace('{external_edit_result_id}', encodeURIComponent(String(externalEditResultId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Accept'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         *
-         * @summary Get Format Check
-         * @param {string} externalEditResultId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getExternalResultFormatCheck: async (externalEditResultId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'externalEditResultId' is not null or undefined
-            assertParamExists('getExternalResultFormatCheck', 'externalEditResultId', externalEditResultId)
-            const localVarPath = `/api/v1/formatting/external-results/{external_edit_result_id}/format-check`
-                .replace('{external_edit_result_id}', encodeURIComponent(String(externalEditResultId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Accept'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         *
-         * @summary List External Edit Results
-         * @param {string} documentId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        listExternalEditResults: async (documentId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'documentId' is not null or undefined
-            assertParamExists('listExternalEditResults', 'documentId', documentId)
-            const localVarPath = `/api/v1/formatting/documents/{document_id}/external-results`
-                .replace('{document_id}', encodeURIComponent(String(documentId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Accept'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         *
-         * @summary Resolve Difference
-         * @param {string} differenceId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        resolveExternalResultFormatDifference: async (differenceId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'differenceId' is not null or undefined
-            assertParamExists('resolveExternalResultFormatDifference', 'differenceId', differenceId)
-            const localVarPath = `/api/v1/formatting/differences/{difference_id}/resolve`
-                .replace('{difference_id}', encodeURIComponent(String(differenceId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Accept'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         *
-         * @summary Run Automatic Check
-         * @param {string} externalEditResultId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        runExternalResultAutomaticFormatCheck: async (externalEditResultId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'externalEditResultId' is not null or undefined
-            assertParamExists('runExternalResultAutomaticFormatCheck', 'externalEditResultId', externalEditResultId)
-            const localVarPath = `/api/v1/formatting/external-results/{external_edit_result_id}/automatic-check`
-                .replace('{external_edit_result_id}', encodeURIComponent(String(externalEditResultId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Accept'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-    }
-};
-
-/**
- * FormattingApi - functional programming interface
- */
-export const FormattingApiFp = function(configuration?: Configuration) {
-    const localVarAxiosParamCreator = FormattingApiAxiosParamCreator(configuration)
-    return {
-        /**
-         *
-         * @summary Collect External Edit Result
-         * @param {string} documentId
-         * @param {string} documentVersionId
-         * @param {File} file
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async collectExternalEditResult(documentId: string, documentVersionId: string, file: File, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any | null; }>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.collectExternalEditResult(documentId, documentVersionId, file, ideSession, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['FormattingApi.collectExternalEditResult']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         *
-         * @summary Complete Visual Review
-         * @param {string} externalEditResultId
-         * @param {BodyCompleteExternalResultVisualReview} bodyCompleteExternalResultVisualReview
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async completeExternalResultVisualReview(externalEditResultId: string, bodyCompleteExternalResultVisualReview: BodyCompleteExternalResultVisualReview, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FormatCheckResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.completeExternalResultVisualReview(externalEditResultId, bodyCompleteExternalResultVisualReview, ideSession, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['FormattingApi.completeExternalResultVisualReview']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         *
-         * @summary Get External Edit Result
-         * @param {string} externalEditResultId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getExternalEditResult(externalEditResultId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ExternalEditResultResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getExternalEditResult(externalEditResultId, ideSession, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['FormattingApi.getExternalEditResult']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         *
-         * @summary Get Approval Allowed
-         * @param {string} externalEditResultId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getExternalResultApprovalAllowed(externalEditResultId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: boolean; }>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getExternalResultApprovalAllowed(externalEditResultId, ideSession, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['FormattingApi.getExternalResultApprovalAllowed']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         *
-         * @summary Get Format Check
-         * @param {string} externalEditResultId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getExternalResultFormatCheck(externalEditResultId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FormatCheckResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getExternalResultFormatCheck(externalEditResultId, ideSession, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['FormattingApi.getExternalResultFormatCheck']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         *
-         * @summary List External Edit Results
-         * @param {string} documentId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async listExternalEditResults(documentId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ExternalEditResultResponse>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.listExternalEditResults(documentId, ideSession, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['FormattingApi.listExternalEditResults']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         *
-         * @summary Resolve Difference
-         * @param {string} differenceId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async resolveExternalResultFormatDifference(differenceId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FormatDifferenceResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.resolveExternalResultFormatDifference(differenceId, ideSession, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['FormattingApi.resolveExternalResultFormatDifference']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         *
-         * @summary Run Automatic Check
-         * @param {string} externalEditResultId
-         * @param {string | null} [ideSession]
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async runExternalResultAutomaticFormatCheck(externalEditResultId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FormatCheckResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.runExternalResultAutomaticFormatCheck(externalEditResultId, ideSession, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['FormattingApi.runExternalResultAutomaticFormatCheck']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-    }
-};
-
-/**
- * FormattingApi - factory interface
- */
-export const FormattingApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
-    const localVarFp = FormattingApiFp(configuration)
-    return {
-        /**
-         *
-         * @summary Collect External Edit Result
-         * @param {FormattingApiCollectExternalEditResultRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        collectExternalEditResult(requestParameters: FormattingApiCollectExternalEditResultRequest, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any | null; }> {
-            return localVarFp.collectExternalEditResult(requestParameters.documentId, requestParameters.documentVersionId, requestParameters.file, requestParameters.ideSession, options).then((request) => request(axios, basePath));
-        },
-        /**
-         *
-         * @summary Complete Visual Review
-         * @param {FormattingApiCompleteExternalResultVisualReviewRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        completeExternalResultVisualReview(requestParameters: FormattingApiCompleteExternalResultVisualReviewRequest, options?: RawAxiosRequestConfig): AxiosPromise<FormatCheckResponse> {
-            return localVarFp.completeExternalResultVisualReview(requestParameters.externalEditResultId, requestParameters.bodyCompleteExternalResultVisualReview, requestParameters.ideSession, options).then((request) => request(axios, basePath));
-        },
-        /**
-         *
-         * @summary Get External Edit Result
-         * @param {FormattingApiGetExternalEditResultRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getExternalEditResult(requestParameters: FormattingApiGetExternalEditResultRequest, options?: RawAxiosRequestConfig): AxiosPromise<ExternalEditResultResponse> {
-            return localVarFp.getExternalEditResult(requestParameters.externalEditResultId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
-        },
-        /**
-         *
-         * @summary Get Approval Allowed
-         * @param {FormattingApiGetExternalResultApprovalAllowedRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getExternalResultApprovalAllowed(requestParameters: FormattingApiGetExternalResultApprovalAllowedRequest, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: boolean; }> {
-            return localVarFp.getExternalResultApprovalAllowed(requestParameters.externalEditResultId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
-        },
-        /**
-         *
-         * @summary Get Format Check
-         * @param {FormattingApiGetExternalResultFormatCheckRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getExternalResultFormatCheck(requestParameters: FormattingApiGetExternalResultFormatCheckRequest, options?: RawAxiosRequestConfig): AxiosPromise<FormatCheckResponse> {
-            return localVarFp.getExternalResultFormatCheck(requestParameters.externalEditResultId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
-        },
-        /**
-         *
-         * @summary List External Edit Results
-         * @param {FormattingApiListExternalEditResultsRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        listExternalEditResults(requestParameters: FormattingApiListExternalEditResultsRequest, options?: RawAxiosRequestConfig): AxiosPromise<Array<ExternalEditResultResponse>> {
-            return localVarFp.listExternalEditResults(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
-        },
-        /**
-         *
-         * @summary Resolve Difference
-         * @param {FormattingApiResolveExternalResultFormatDifferenceRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        resolveExternalResultFormatDifference(requestParameters: FormattingApiResolveExternalResultFormatDifferenceRequest, options?: RawAxiosRequestConfig): AxiosPromise<FormatDifferenceResponse> {
-            return localVarFp.resolveExternalResultFormatDifference(requestParameters.differenceId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
-        },
-        /**
-         *
-         * @summary Run Automatic Check
-         * @param {FormattingApiRunExternalResultAutomaticFormatCheckRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        runExternalResultAutomaticFormatCheck(requestParameters: FormattingApiRunExternalResultAutomaticFormatCheckRequest, options?: RawAxiosRequestConfig): AxiosPromise<FormatCheckResponse> {
-            return localVarFp.runExternalResultAutomaticFormatCheck(requestParameters.externalEditResultId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
-        },
-    };
-};
-
-/**
- * FormattingApi - interface
- */
-export interface FormattingApiInterface {
-    /**
-     *
-     * @summary Collect External Edit Result
-     * @param {FormattingApiCollectExternalEditResultRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    collectExternalEditResult(requestParameters: FormattingApiCollectExternalEditResultRequest, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any | null; }>;
-
-    /**
-     *
-     * @summary Complete Visual Review
-     * @param {FormattingApiCompleteExternalResultVisualReviewRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    completeExternalResultVisualReview(requestParameters: FormattingApiCompleteExternalResultVisualReviewRequest, options?: RawAxiosRequestConfig): AxiosPromise<FormatCheckResponse>;
-
-    /**
-     *
-     * @summary Get External Edit Result
-     * @param {FormattingApiGetExternalEditResultRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    getExternalEditResult(requestParameters: FormattingApiGetExternalEditResultRequest, options?: RawAxiosRequestConfig): AxiosPromise<ExternalEditResultResponse>;
-
-    /**
-     *
-     * @summary Get Approval Allowed
-     * @param {FormattingApiGetExternalResultApprovalAllowedRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    getExternalResultApprovalAllowed(requestParameters: FormattingApiGetExternalResultApprovalAllowedRequest, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: boolean; }>;
-
-    /**
-     *
-     * @summary Get Format Check
-     * @param {FormattingApiGetExternalResultFormatCheckRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    getExternalResultFormatCheck(requestParameters: FormattingApiGetExternalResultFormatCheckRequest, options?: RawAxiosRequestConfig): AxiosPromise<FormatCheckResponse>;
-
-    /**
-     *
-     * @summary List External Edit Results
-     * @param {FormattingApiListExternalEditResultsRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    listExternalEditResults(requestParameters: FormattingApiListExternalEditResultsRequest, options?: RawAxiosRequestConfig): AxiosPromise<Array<ExternalEditResultResponse>>;
-
-    /**
-     *
-     * @summary Resolve Difference
-     * @param {FormattingApiResolveExternalResultFormatDifferenceRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    resolveExternalResultFormatDifference(requestParameters: FormattingApiResolveExternalResultFormatDifferenceRequest, options?: RawAxiosRequestConfig): AxiosPromise<FormatDifferenceResponse>;
-
-    /**
-     *
-     * @summary Run Automatic Check
-     * @param {FormattingApiRunExternalResultAutomaticFormatCheckRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    runExternalResultAutomaticFormatCheck(requestParameters: FormattingApiRunExternalResultAutomaticFormatCheckRequest, options?: RawAxiosRequestConfig): AxiosPromise<FormatCheckResponse>;
-
-}
-
-/**
- * Request parameters for collectExternalEditResult operation in FormattingApi.
- */
-export interface FormattingApiCollectExternalEditResultRequest {
-    readonly documentId: string
-
-    readonly documentVersionId: string
-
-    readonly file: File
-
-    readonly ideSession?: string | null
-}
-
-/**
- * Request parameters for completeExternalResultVisualReview operation in FormattingApi.
- */
-export interface FormattingApiCompleteExternalResultVisualReviewRequest {
-    readonly externalEditResultId: string
-
-    readonly bodyCompleteExternalResultVisualReview: BodyCompleteExternalResultVisualReview
-
-    readonly ideSession?: string | null
-}
-
-/**
- * Request parameters for getExternalEditResult operation in FormattingApi.
- */
-export interface FormattingApiGetExternalEditResultRequest {
-    readonly externalEditResultId: string
-
-    readonly ideSession?: string | null
-}
-
-/**
- * Request parameters for getExternalResultApprovalAllowed operation in FormattingApi.
- */
-export interface FormattingApiGetExternalResultApprovalAllowedRequest {
-    readonly externalEditResultId: string
-
-    readonly ideSession?: string | null
-}
-
-/**
- * Request parameters for getExternalResultFormatCheck operation in FormattingApi.
- */
-export interface FormattingApiGetExternalResultFormatCheckRequest {
-    readonly externalEditResultId: string
-
-    readonly ideSession?: string | null
-}
-
-/**
- * Request parameters for listExternalEditResults operation in FormattingApi.
- */
-export interface FormattingApiListExternalEditResultsRequest {
-    readonly documentId: string
-
-    readonly ideSession?: string | null
-}
-
-/**
- * Request parameters for resolveExternalResultFormatDifference operation in FormattingApi.
- */
-export interface FormattingApiResolveExternalResultFormatDifferenceRequest {
-    readonly differenceId: string
-
-    readonly ideSession?: string | null
-}
-
-/**
- * Request parameters for runExternalResultAutomaticFormatCheck operation in FormattingApi.
- */
-export interface FormattingApiRunExternalResultAutomaticFormatCheckRequest {
-    readonly externalEditResultId: string
-
-    readonly ideSession?: string | null
-}
-
-/**
- * FormattingApi - object-oriented interface
- */
-export class FormattingApi extends BaseAPI implements FormattingApiInterface {
-    /**
-     *
-     * @summary Collect External Edit Result
-     * @param {FormattingApiCollectExternalEditResultRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public collectExternalEditResult(requestParameters: FormattingApiCollectExternalEditResultRequest, options?: RawAxiosRequestConfig) {
-        return FormattingApiFp(this.configuration).collectExternalEditResult(requestParameters.documentId, requestParameters.documentVersionId, requestParameters.file, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     *
-     * @summary Complete Visual Review
-     * @param {FormattingApiCompleteExternalResultVisualReviewRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public completeExternalResultVisualReview(requestParameters: FormattingApiCompleteExternalResultVisualReviewRequest, options?: RawAxiosRequestConfig) {
-        return FormattingApiFp(this.configuration).completeExternalResultVisualReview(requestParameters.externalEditResultId, requestParameters.bodyCompleteExternalResultVisualReview, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     *
-     * @summary Get External Edit Result
-     * @param {FormattingApiGetExternalEditResultRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public getExternalEditResult(requestParameters: FormattingApiGetExternalEditResultRequest, options?: RawAxiosRequestConfig) {
-        return FormattingApiFp(this.configuration).getExternalEditResult(requestParameters.externalEditResultId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     *
-     * @summary Get Approval Allowed
-     * @param {FormattingApiGetExternalResultApprovalAllowedRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public getExternalResultApprovalAllowed(requestParameters: FormattingApiGetExternalResultApprovalAllowedRequest, options?: RawAxiosRequestConfig) {
-        return FormattingApiFp(this.configuration).getExternalResultApprovalAllowed(requestParameters.externalEditResultId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     *
-     * @summary Get Format Check
-     * @param {FormattingApiGetExternalResultFormatCheckRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public getExternalResultFormatCheck(requestParameters: FormattingApiGetExternalResultFormatCheckRequest, options?: RawAxiosRequestConfig) {
-        return FormattingApiFp(this.configuration).getExternalResultFormatCheck(requestParameters.externalEditResultId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     *
-     * @summary List External Edit Results
-     * @param {FormattingApiListExternalEditResultsRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public listExternalEditResults(requestParameters: FormattingApiListExternalEditResultsRequest, options?: RawAxiosRequestConfig) {
-        return FormattingApiFp(this.configuration).listExternalEditResults(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     *
-     * @summary Resolve Difference
-     * @param {FormattingApiResolveExternalResultFormatDifferenceRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public resolveExternalResultFormatDifference(requestParameters: FormattingApiResolveExternalResultFormatDifferenceRequest, options?: RawAxiosRequestConfig) {
-        return FormattingApiFp(this.configuration).resolveExternalResultFormatDifference(requestParameters.differenceId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     *
-     * @summary Run Automatic Check
-     * @param {FormattingApiRunExternalResultAutomaticFormatCheckRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public runExternalResultAutomaticFormatCheck(requestParameters: FormattingApiRunExternalResultAutomaticFormatCheckRequest, options?: RawAxiosRequestConfig) {
-        return FormattingApiFp(this.configuration).runExternalResultAutomaticFormatCheck(requestParameters.externalEditResultId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
-    }
-}
-
-
-
-/**
  * HistoryApi - axios parameter creator
  */
 export const HistoryApiAxiosParamCreator = function (configuration?: Configuration) {
@@ -6142,6 +5433,501 @@ export class ImpactsApi extends BaseAPI implements ImpactsApiInterface {
      */
     public rejectRelationshipCandidate(requestParameters: ImpactsApiRejectRelationshipCandidateRequest, options?: RawAxiosRequestConfig) {
         return ImpactsApiFp(this.configuration).rejectRelationshipCandidate(requestParameters.relationshipId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * LatexApi - axios parameter creator
+ */
+export const LatexApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         *
+         * @summary Create Latex Source Revision
+         * @param {string} documentId
+         * @param {LatexSourceRevisionCreate} latexSourceRevisionCreate
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createLatexSourceRevision: async (documentId: string, latexSourceRevisionCreate: LatexSourceRevisionCreate, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'documentId' is not null or undefined
+            assertParamExists('createLatexSourceRevision', 'documentId', documentId)
+            // verify required parameter 'latexSourceRevisionCreate' is not null or undefined
+            assertParamExists('createLatexSourceRevision', 'latexSourceRevisionCreate', latexSourceRevisionCreate)
+            const localVarPath = `/api/v1/documents/{document_id}/latex/revisions`
+                .replace('{document_id}', encodeURIComponent(String(documentId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(latexSourceRevisionCreate, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         *
+         * @summary Get Latex Bundle
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatexBundle: async (documentId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'documentId' is not null or undefined
+            assertParamExists('getLatexBundle', 'documentId', documentId)
+            const localVarPath = `/api/v1/documents/{document_id}/latex/bundle`
+                .replace('{document_id}', encodeURIComponent(String(documentId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         *
+         * @summary Get Latex Preview
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatexPreview: async (documentId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'documentId' is not null or undefined
+            assertParamExists('getLatexPreview', 'documentId', documentId)
+            const localVarPath = `/api/v1/documents/{document_id}/latex/preview`
+                .replace('{document_id}', encodeURIComponent(String(documentId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         *
+         * @summary Get Latex Project
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatexProject: async (documentId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'documentId' is not null or undefined
+            assertParamExists('getLatexProject', 'documentId', documentId)
+            const localVarPath = `/api/v1/documents/{document_id}/latex`
+                .replace('{document_id}', encodeURIComponent(String(documentId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         *
+         * @summary Review Latex Conversion
+         * @param {string} documentId
+         * @param {ConversionReviewCreate} conversionReviewCreate
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        reviewLatexConversion: async (documentId: string, conversionReviewCreate: ConversionReviewCreate, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'documentId' is not null or undefined
+            assertParamExists('reviewLatexConversion', 'documentId', documentId)
+            // verify required parameter 'conversionReviewCreate' is not null or undefined
+            assertParamExists('reviewLatexConversion', 'conversionReviewCreate', conversionReviewCreate)
+            const localVarPath = `/api/v1/documents/{document_id}/latex/conversion-reviews`
+                .replace('{document_id}', encodeURIComponent(String(documentId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(conversionReviewCreate, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * LatexApi - functional programming interface
+ */
+export const LatexApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = LatexApiAxiosParamCreator(configuration)
+    return {
+        /**
+         *
+         * @summary Create Latex Source Revision
+         * @param {string} documentId
+         * @param {LatexSourceRevisionCreate} latexSourceRevisionCreate
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createLatexSourceRevision(documentId: string, latexSourceRevisionCreate: LatexSourceRevisionCreate, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<LatexProjectResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createLatexSourceRevision(documentId, latexSourceRevisionCreate, ideSession, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LatexApi.createLatexSourceRevision']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         *
+         * @summary Get Latex Bundle
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getLatexBundle(documentId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getLatexBundle(documentId, ideSession, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LatexApi.getLatexBundle']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         *
+         * @summary Get Latex Preview
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getLatexPreview(documentId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getLatexPreview(documentId, ideSession, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LatexApi.getLatexPreview']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         *
+         * @summary Get Latex Project
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getLatexProject(documentId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<LatexProjectResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getLatexProject(documentId, ideSession, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LatexApi.getLatexProject']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         *
+         * @summary Review Latex Conversion
+         * @param {string} documentId
+         * @param {ConversionReviewCreate} conversionReviewCreate
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async reviewLatexConversion(documentId: string, conversionReviewCreate: ConversionReviewCreate, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<LatexProjectResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.reviewLatexConversion(documentId, conversionReviewCreate, ideSession, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LatexApi.reviewLatexConversion']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * LatexApi - factory interface
+ */
+export const LatexApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = LatexApiFp(configuration)
+    return {
+        /**
+         *
+         * @summary Create Latex Source Revision
+         * @param {LatexApiCreateLatexSourceRevisionRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createLatexSourceRevision(requestParameters: LatexApiCreateLatexSourceRevisionRequest, options?: RawAxiosRequestConfig): AxiosPromise<LatexProjectResponse> {
+            return localVarFp.createLatexSourceRevision(requestParameters.documentId, requestParameters.latexSourceRevisionCreate, requestParameters.ideSession, options).then((request) => request(axios, basePath));
+        },
+        /**
+         *
+         * @summary Get Latex Bundle
+         * @param {LatexApiGetLatexBundleRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatexBundle(requestParameters: LatexApiGetLatexBundleRequest, options?: RawAxiosRequestConfig): AxiosPromise<any> {
+            return localVarFp.getLatexBundle(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
+        },
+        /**
+         *
+         * @summary Get Latex Preview
+         * @param {LatexApiGetLatexPreviewRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatexPreview(requestParameters: LatexApiGetLatexPreviewRequest, options?: RawAxiosRequestConfig): AxiosPromise<any> {
+            return localVarFp.getLatexPreview(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
+        },
+        /**
+         *
+         * @summary Get Latex Project
+         * @param {LatexApiGetLatexProjectRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatexProject(requestParameters: LatexApiGetLatexProjectRequest, options?: RawAxiosRequestConfig): AxiosPromise<LatexProjectResponse> {
+            return localVarFp.getLatexProject(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
+        },
+        /**
+         *
+         * @summary Review Latex Conversion
+         * @param {LatexApiReviewLatexConversionRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        reviewLatexConversion(requestParameters: LatexApiReviewLatexConversionRequest, options?: RawAxiosRequestConfig): AxiosPromise<LatexProjectResponse> {
+            return localVarFp.reviewLatexConversion(requestParameters.documentId, requestParameters.conversionReviewCreate, requestParameters.ideSession, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * LatexApi - interface
+ */
+export interface LatexApiInterface {
+    /**
+     *
+     * @summary Create Latex Source Revision
+     * @param {LatexApiCreateLatexSourceRevisionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    createLatexSourceRevision(requestParameters: LatexApiCreateLatexSourceRevisionRequest, options?: RawAxiosRequestConfig): AxiosPromise<LatexProjectResponse>;
+
+    /**
+     *
+     * @summary Get Latex Bundle
+     * @param {LatexApiGetLatexBundleRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getLatexBundle(requestParameters: LatexApiGetLatexBundleRequest, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+
+    /**
+     *
+     * @summary Get Latex Preview
+     * @param {LatexApiGetLatexPreviewRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getLatexPreview(requestParameters: LatexApiGetLatexPreviewRequest, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+
+    /**
+     *
+     * @summary Get Latex Project
+     * @param {LatexApiGetLatexProjectRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getLatexProject(requestParameters: LatexApiGetLatexProjectRequest, options?: RawAxiosRequestConfig): AxiosPromise<LatexProjectResponse>;
+
+    /**
+     *
+     * @summary Review Latex Conversion
+     * @param {LatexApiReviewLatexConversionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    reviewLatexConversion(requestParameters: LatexApiReviewLatexConversionRequest, options?: RawAxiosRequestConfig): AxiosPromise<LatexProjectResponse>;
+
+}
+
+/**
+ * Request parameters for createLatexSourceRevision operation in LatexApi.
+ */
+export interface LatexApiCreateLatexSourceRevisionRequest {
+    readonly documentId: string
+
+    readonly latexSourceRevisionCreate: LatexSourceRevisionCreate
+
+    readonly ideSession?: string | null
+}
+
+/**
+ * Request parameters for getLatexBundle operation in LatexApi.
+ */
+export interface LatexApiGetLatexBundleRequest {
+    readonly documentId: string
+
+    readonly ideSession?: string | null
+}
+
+/**
+ * Request parameters for getLatexPreview operation in LatexApi.
+ */
+export interface LatexApiGetLatexPreviewRequest {
+    readonly documentId: string
+
+    readonly ideSession?: string | null
+}
+
+/**
+ * Request parameters for getLatexProject operation in LatexApi.
+ */
+export interface LatexApiGetLatexProjectRequest {
+    readonly documentId: string
+
+    readonly ideSession?: string | null
+}
+
+/**
+ * Request parameters for reviewLatexConversion operation in LatexApi.
+ */
+export interface LatexApiReviewLatexConversionRequest {
+    readonly documentId: string
+
+    readonly conversionReviewCreate: ConversionReviewCreate
+
+    readonly ideSession?: string | null
+}
+
+/**
+ * LatexApi - object-oriented interface
+ */
+export class LatexApi extends BaseAPI implements LatexApiInterface {
+    /**
+     *
+     * @summary Create Latex Source Revision
+     * @param {LatexApiCreateLatexSourceRevisionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createLatexSourceRevision(requestParameters: LatexApiCreateLatexSourceRevisionRequest, options?: RawAxiosRequestConfig) {
+        return LatexApiFp(this.configuration).createLatexSourceRevision(requestParameters.documentId, requestParameters.latexSourceRevisionCreate, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     *
+     * @summary Get Latex Bundle
+     * @param {LatexApiGetLatexBundleRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getLatexBundle(requestParameters: LatexApiGetLatexBundleRequest, options?: RawAxiosRequestConfig) {
+        return LatexApiFp(this.configuration).getLatexBundle(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     *
+     * @summary Get Latex Preview
+     * @param {LatexApiGetLatexPreviewRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getLatexPreview(requestParameters: LatexApiGetLatexPreviewRequest, options?: RawAxiosRequestConfig) {
+        return LatexApiFp(this.configuration).getLatexPreview(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     *
+     * @summary Get Latex Project
+     * @param {LatexApiGetLatexProjectRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getLatexProject(requestParameters: LatexApiGetLatexProjectRequest, options?: RawAxiosRequestConfig) {
+        return LatexApiFp(this.configuration).getLatexProject(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     *
+     * @summary Review Latex Conversion
+     * @param {LatexApiReviewLatexConversionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public reviewLatexConversion(requestParameters: LatexApiReviewLatexConversionRequest, options?: RawAxiosRequestConfig) {
+        return LatexApiFp(this.configuration).reviewLatexConversion(requestParameters.documentId, requestParameters.conversionReviewCreate, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

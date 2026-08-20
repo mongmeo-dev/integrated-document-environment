@@ -7,15 +7,15 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class CompletionBlockingCode(StrEnum):
     DOCUMENT_NOT_FOUND = "document_not_found"
-    EXTERNAL_EDIT_RESULT_NOT_FOUND = "external_edit_result_not_found"
-    EXTERNAL_EDIT_RESULT_DOCUMENT_MISMATCH = "external_edit_result_document_mismatch"
-    SCANNED_PDF = "scanned_pdf"
-    UNSUPPORTED_ORIGINAL_FORMAT = "unsupported_original_format"
-    CROSS_FORMAT_RESULT = "cross_format_result"
-    FORMAT_RESULT_NOT_PASSED = "format_result_not_passed"
-    AUTOMATIC_CHECK_INCOMPLETE = "automatic_check_incomplete"
-    VISUAL_REVIEW_INCOMPLETE = "visual_review_incomplete"
-    UNRESOLVED_FORMAT_DIFFERENCES = "unresolved_format_differences"
+    LATEX_PROJECT_MISSING = "latex_project_missing"
+    LATEX_REVISION_NOT_FOUND = "latex_revision_not_found"
+    LATEX_REVISION_DOCUMENT_MISMATCH = "latex_revision_document_mismatch"
+    LATEX_REVISION_NOT_LATEST = "latex_revision_not_latest"
+    COMPILE_INCOMPLETE = "compile_incomplete"
+    COMPILE_FAILED = "compile_failed"
+    COMPILED_PDF_MISSING = "compiled_pdf_missing"
+    CONVERSION_REVIEW_PENDING = "conversion_review_pending"
+    CONVERSION_REJECTED = "conversion_rejected"
     PENDING_CHANGE_REQUESTS = "pending_change_requests"
     PENDING_CHANGE_PROPOSALS = "pending_change_proposals"
     PENDING_RELATIONSHIP_CANDIDATES = "pending_relationship_candidates"
@@ -32,9 +32,14 @@ class CompletionBlockingReason(BaseModel):
     count: int = Field(ge=1)
 
 
+class CompletionRequest(BaseModel):
+    document_id: UUID
+    latex_revision_id: UUID
+
+
 class CompletionEvaluation(BaseModel):
     document_id: UUID
-    external_edit_result_id: UUID
+    latex_revision_id: UUID
     blocking_reasons: list[CompletionBlockingReason] = Field(default_factory=list)
 
     @property
@@ -47,7 +52,7 @@ class DocumentCompletionResponse(BaseModel):
 
     id: UUID
     document_id: UUID
-    external_edit_result_id: UUID
-    original_format: str
+    latex_revision_id: UUID
+    compiled_pdf_sha256: str
     completed_by_id: UUID
     completed_at: datetime

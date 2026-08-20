@@ -1,14 +1,12 @@
-# InputKind
+# RevisionOrigin
 
 
 ## Enum
 
-* `LatexProject` (value: `'latex_project'`)
+* `LatexUpload` (value: `'latex_upload'`)
 
-* `DocxImport` (value: `'docx_import'`)
+* `DocxConversion` (value: `'docx_conversion'`)
 
-* `TextPdf` (value: `'text_pdf'`)
-
-* `ScannedPdf` (value: `'scanned_pdf'`)
+* `WebEdit` (value: `'web_edit'`)
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

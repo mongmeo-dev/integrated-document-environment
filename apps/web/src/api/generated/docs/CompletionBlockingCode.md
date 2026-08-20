@@ -5,23 +5,23 @@
 
 * `DocumentNotFound` (value: `'document_not_found'`)
 
-* `ExternalEditResultNotFound` (value: `'external_edit_result_not_found'`)
+* `LatexProjectMissing` (value: `'latex_project_missing'`)
 
-* `ExternalEditResultDocumentMismatch` (value: `'external_edit_result_document_mismatch'`)
+* `LatexRevisionNotFound` (value: `'latex_revision_not_found'`)
 
-* `ScannedPdf` (value: `'scanned_pdf'`)
+* `LatexRevisionDocumentMismatch` (value: `'latex_revision_document_mismatch'`)
 
-* `UnsupportedOriginalFormat` (value: `'unsupported_original_format'`)
+* `LatexRevisionNotLatest` (value: `'latex_revision_not_latest'`)
 
-* `CrossFormatResult` (value: `'cross_format_result'`)
+* `CompileIncomplete` (value: `'compile_incomplete'`)
 
-* `FormatResultNotPassed` (value: `'format_result_not_passed'`)
+* `CompileFailed` (value: `'compile_failed'`)
 
-* `AutomaticCheckIncomplete` (value: `'automatic_check_incomplete'`)
+* `CompiledPdfMissing` (value: `'compiled_pdf_missing'`)
 
-* `VisualReviewIncomplete` (value: `'visual_review_incomplete'`)
+* `ConversionReviewPending` (value: `'conversion_review_pending'`)
 
-* `UnresolvedFormatDifferences` (value: `'unresolved_format_differences'`)
+* `ConversionRejected` (value: `'conversion_rejected'`)
 
 * `PendingChangeRequests` (value: `'pending_change_requests'`)
 

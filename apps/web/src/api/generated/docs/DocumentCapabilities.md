@@ -6,8 +6,9 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **analysis** | **boolean** |  | [default to undefined]
-**external_edit_round_trip** | **boolean** |  | [default to undefined]
-**format_comparison** | **boolean** |  | [default to undefined]
+**source_editing** | **boolean** |  | [default to undefined]
+**compilation** | **boolean** |  | [default to undefined]
+**conversion_review** | **boolean** |  | [default to undefined]
 **approved_output** | **boolean** |  | [default to undefined]
 
 ## Example
@@ -17,8 +18,9 @@ import { DocumentCapabilities } from './api';
 
 const instance: DocumentCapabilities = {
     analysis,
-    external_edit_round_trip,
-    format_comparison,
+    source_editing,
+    compilation,
+    conversion_review,
     approved_output,
 };
 ```

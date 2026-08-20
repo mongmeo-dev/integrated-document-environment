@@ -1,7 +1,11 @@
+from collections.abc import Iterator
 from typing import Annotated
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
 
 from ide_api.api.dependencies import CurrentUser, DbSession
 from ide_api.domains.auth.schemas import ApiError
@@ -12,6 +16,13 @@ from ide_api.domains.documents.service import (
     DocumentService,
     DocumentStorageError,
     DocumentUploadError,
+)
+from ide_api.domains.latex.service import (
+    LatexPersistenceError,
+    LatexProcessingError,
+    LatexProjectNotFoundError,
+    LatexProjectService,
+    LatexStorageError,
 )
 from ide_api.infrastructure.object_storage import ObjectStorage
 
@@ -128,6 +139,65 @@ async def get_document(
         ) from None
 
 
+@router.get(
+    "/{document_id}/original",
+    operation_id="downloadOriginalDocument",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "content": {
+                "application/octet-stream": {"schema": {"type": "string", "format": "binary"}}
+            }
+        },
+        401: {"model": ApiError},
+        404: {"model": ApiError},
+        503: {"model": ApiError},
+    },
+)
+async def download_original_document(
+    document_id: str,
+    db_session: DbSession,
+    _: CurrentUser,
+    object_storage: ObjectStorageDependency,
+) -> StreamingResponse:
+    try:
+        parsed_document_id = UUID(document_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ApiError(code="document_not_found", message="Document not found.").model_dump(),
+        ) from None
+
+    try:
+        content, filename, media_type, resources = await DocumentService(
+            db_session, object_storage
+        ).get_original(parsed_document_id)
+    except DocumentNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ApiError(code="document_not_found", message="Document not found.").model_dump(),
+        ) from None
+    except DocumentStorageError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=ApiError(
+                code="original_download_unavailable",
+                message="The stored original is temporarily unavailable.",
+            ).model_dump(),
+        ) from None
+
+    def chunks() -> Iterator[bytes]:
+        while chunk := content.read(1024 * 1024):
+            yield chunk
+
+    return StreamingResponse(
+        chunks(),
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+        background=BackgroundTask(resources.close),
+    )
+
+
 @router.post(
     "/{document_id}/validate",
     operation_id="validateDocument",
@@ -135,13 +205,14 @@ async def get_document(
     responses={
         401: {"model": ApiError},
         404: {"model": ApiError},
+        422: {"model": ApiError},
         503: {"model": ApiError},
     },
 )
 async def validate_document(
     document_id: str,
     db_session: DbSession,
-    _: CurrentUser,
+    current_user: CurrentUser,
     object_storage: ObjectStorageDependency,
 ) -> DocumentResponse:
     try:
@@ -169,5 +240,31 @@ async def validate_document(
                 message="Document validation is temporarily unavailable.",
             ).model_dump(),
         ) from None
+
+    if document.versions[0].input_kind in {"latex_project", "docx_import"}:
+        try:
+            await LatexProjectService(db_session, object_storage).ensure_initial_revision(
+                parsed_document_id, current_user
+            )
+        except LatexProcessingError as error:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=ApiError(code=error.code, message=error.message).model_dump(),
+            ) from None
+        except LatexProjectNotFoundError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=ApiError(
+                    code="document_not_found", message="Document not found."
+                ).model_dump(),
+            ) from None
+        except LatexStorageError, LatexPersistenceError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=ApiError(
+                    code="latex_initialization_unavailable",
+                    message="LaTeX project initialization is temporarily unavailable.",
+                ).model_dump(),
+            ) from None
 
     return DocumentService.to_response(document)

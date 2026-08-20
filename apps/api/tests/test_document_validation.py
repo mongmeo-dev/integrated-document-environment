@@ -2,12 +2,19 @@ from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 import fitz
 import pikepdf
+import pytest
 
-from ide_api.domains.documents.validation import validate_docx, validate_pdf
+from ide_api.domains.documents.validation import (
+    validate_document,
+    validate_docx,
+    validate_latex_project,
+    validate_latex_source,
+    validate_pdf,
+)
 
 SAMPLE_DOCS = Path(__file__).parents[3] / "fixture" / "sample-docs"
 _CONTENT_TYPES = (
@@ -22,7 +29,7 @@ _DOCUMENT = b"""<?xml version="1.0" encoding="UTF-8"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body/></w:document>"""
 
 
-def test_all_sample_docx_files_are_editable() -> None:
+def test_all_sample_docx_files_are_imports() -> None:
     paths = sorted(SAMPLE_DOCS.glob("*.docx"))
     assert len(paths) == 7
 
@@ -30,7 +37,7 @@ def test_all_sample_docx_files_are_editable() -> None:
         with path.open("rb") as source:
             result = validate_docx(source)
 
-        assert result.input_kind == "editable_docx"
+        assert result.input_kind == "docx_import"
         assert result.rejection_code is None
 
 
@@ -56,6 +63,69 @@ def test_rejects_zip_bomb_docx() -> None:
 
     assert result.input_kind is None
     assert result.rejection_code == "unsafe_archive"
+
+
+def test_classifies_valid_latex_source_and_project() -> None:
+    source = BytesIO(b"\\documentclass{article}\n\\begin{document}Hello\\end{document}\n")
+    project = BytesIO(_latex_project_bytes(("main.tex", source.getvalue())))
+
+    assert validate_latex_source(source).input_kind == "latex_project"
+    assert validate_latex_project(project).input_kind == "latex_project"
+
+
+def test_rejects_invalid_latex_source_and_ambiguous_project() -> None:
+    assert validate_latex_source(BytesIO(b"\\documentclass{article}\x00")).rejection_code == (
+        "invalid_latex_source"
+    )
+    assert validate_latex_source(BytesIO(b"\xff")).rejection_code == "invalid_latex_source"
+    assert validate_latex_source(BytesIO(b"\\begin{document}")).rejection_code == (
+        "invalid_latex_source"
+    )
+    result = validate_latex_project(
+        BytesIO(_latex_project_bytes(("first.tex", b""), ("second.tex", b"")))
+    )
+    assert result.rejection_code == "ambiguous_latex_entrypoint"
+
+
+def test_root_main_tex_resolves_an_otherwise_ambiguous_project() -> None:
+    result = validate_latex_project(
+        BytesIO(_latex_project_bytes(("main.tex", b""), ("chapters/intro.tex", b"")))
+    )
+
+    assert result.input_kind == "latex_project"
+
+
+def test_rejects_latex_project_without_entrypoint() -> None:
+    result = validate_latex_project(BytesIO(_latex_project_bytes(("references.bib", b""))))
+
+    assert result.rejection_code == "missing_latex_entrypoint"
+
+
+@pytest.mark.parametrize(
+    ("entries", "symlink"),
+    [
+        ((("/absolute.tex", b""),), None),
+        ((("C:/absolute.tex", b""),), None),
+        ((("../escape.tex", b""),), None),
+        ((("main.tex", b""), ("main.tex", b"duplicate")), None),
+        ((("main.tex", b""),), "assets/link"),
+    ],
+)
+def test_rejects_unsafe_latex_project_entries(
+    entries: tuple[tuple[str, bytes], ...], symlink: str | None
+) -> None:
+    result = validate_latex_project(BytesIO(_latex_project_bytes(*entries, symlink=symlink)))
+
+    assert result.rejection_code == "unsafe_archive"
+
+
+def test_rejects_unsafe_latex_project_and_filename_media_type_mismatch() -> None:
+    encrypted = bytearray(_latex_project_bytes(("main.tex", b"")))
+    _set_zip_encryption_flags(encrypted)
+
+    assert validate_latex_project(BytesIO(encrypted)).rejection_code == "encrypted_document"
+    result = validate_document(BytesIO(b"\\documentclass{article}"), "main.tex", "application/zip")
+    assert result.rejection_code == "unsupported_document"
 
 
 def test_classifies_text_and_scanned_pdf() -> None:
@@ -103,6 +173,18 @@ def _docx_bytes(extra: tuple[str, bytes] | None = None) -> bytes:
         archive.writestr("word/document.xml", _DOCUMENT)
         if extra is not None:
             archive.writestr(*extra)
+    return content.getvalue()
+
+
+def _latex_project_bytes(*entries: tuple[str, bytes], symlink: str | None = None) -> bytes:
+    content = BytesIO()
+    with ZipFile(content, "w", compression=ZIP_DEFLATED) as archive:
+        for entry in entries:
+            archive.writestr(*entry)
+        if symlink is not None:
+            info = ZipInfo(symlink)
+            info.external_attr = 0o120777 << 16
+            archive.writestr(info, b"main.tex")
     return content.getvalue()
 
 

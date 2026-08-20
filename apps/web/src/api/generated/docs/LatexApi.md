@@ -1,35 +1,38 @@
-# DocumentsApi
+# LatexApi
 
 All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**downloadOriginalDocument**](#downloadoriginaldocument) | **GET** /api/v1/documents/{document_id}/original | Download Original Document|
-|[**getDocument**](#getdocument) | **GET** /api/v1/documents/{document_id} | Get Document|
-|[**listDocuments**](#listdocuments) | **GET** /api/v1/documents | List Documents|
-|[**registerDocument**](#registerdocument) | **POST** /api/v1/documents | Register Document|
-|[**validateDocument**](#validatedocument) | **POST** /api/v1/documents/{document_id}/validate | Validate Document|
+|[**createLatexSourceRevision**](#createlatexsourcerevision) | **POST** /api/v1/documents/{document_id}/latex/revisions | Create Latex Source Revision|
+|[**getLatexBundle**](#getlatexbundle) | **GET** /api/v1/documents/{document_id}/latex/bundle | Get Latex Bundle|
+|[**getLatexPreview**](#getlatexpreview) | **GET** /api/v1/documents/{document_id}/latex/preview | Get Latex Preview|
+|[**getLatexProject**](#getlatexproject) | **GET** /api/v1/documents/{document_id}/latex | Get Latex Project|
+|[**reviewLatexConversion**](#reviewlatexconversion) | **POST** /api/v1/documents/{document_id}/latex/conversion-reviews | Review Latex Conversion|
 
-# **downloadOriginalDocument**
-> File downloadOriginalDocument()
+# **createLatexSourceRevision**
+> LatexProjectResponse createLatexSourceRevision(latexSourceRevisionCreate)
 
 
 ### Example
 
 ```typescript
 import {
-    DocumentsApi,
-    Configuration
+    LatexApi,
+    Configuration,
+    LatexSourceRevisionCreate
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new DocumentsApi(configuration);
+const apiInstance = new LatexApi(configuration);
 
 let documentId: string; // (default to undefined)
+let latexSourceRevisionCreate: LatexSourceRevisionCreate; //
 let ideSession: string; // (optional) (default to undefined)
 
-const { status, data } = await apiInstance.downloadOriginalDocument(
+const { status, data } = await apiInstance.createLatexSourceRevision(
     documentId,
+    latexSourceRevisionCreate,
     ideSession
 );
 ```
@@ -38,13 +41,14 @@ const { status, data } = await apiInstance.downloadOriginalDocument(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
+| **latexSourceRevisionCreate** | **LatexSourceRevisionCreate**|  | |
 | **documentId** | [**string**] |  | defaults to undefined|
 | **ideSession** | [**string**] |  | (optional) defaults to undefined|
 
 
 ### Return type
 
-**File**
+**LatexProjectResponse**
 
 ### Authorization
 
@@ -52,40 +56,41 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
- - **Accept**: application/octet-stream, application/json
+ - **Content-Type**: application/json
+ - **Accept**: application/json
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-|**200** | Successful Response |  -  |
+|**201** | Successful Response |  -  |
 |**401** | Unauthorized |  -  |
 |**404** | Not Found |  -  |
+|**409** | Conflict |  -  |
+|**422** | Unprocessable Content |  -  |
 |**503** | Service Unavailable |  -  |
-|**422** | Validation Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **getDocument**
-> DocumentResponse getDocument()
+# **getLatexBundle**
+> any getLatexBundle()
 
 
 ### Example
 
 ```typescript
 import {
-    DocumentsApi,
+    LatexApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new DocumentsApi(configuration);
+const apiInstance = new LatexApi(configuration);
 
 let documentId: string; // (default to undefined)
 let ideSession: string; // (optional) (default to undefined)
 
-const { status, data } = await apiInstance.getDocument(
+const { status, data } = await apiInstance.getLatexBundle(
     documentId,
     ideSession
 );
@@ -101,7 +106,7 @@ const { status, data } = await apiInstance.getDocument(
 
 ### Return type
 
-**DocumentResponse**
+**any**
 
 ### Authorization
 
@@ -119,152 +124,30 @@ No authorization required
 |**200** | Successful Response |  -  |
 |**401** | Unauthorized |  -  |
 |**404** | Not Found |  -  |
-|**422** | Validation Error |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **listDocuments**
-> Array<DocumentResponse> listDocuments()
-
-
-### Example
-
-```typescript
-import {
-    DocumentsApi,
-    Configuration
-} from './api';
-
-const configuration = new Configuration();
-const apiInstance = new DocumentsApi(configuration);
-
-let status: DocumentStatus; // (optional) (default to undefined)
-let query: string; // (optional) (default to undefined)
-let limit: number; // (optional) (default to 20)
-let offset: number; // (optional) (default to 0)
-let ideSession: string; // (optional) (default to undefined)
-
-const { status, data } = await apiInstance.listDocuments(
-    status,
-    query,
-    limit,
-    offset,
-    ideSession
-);
-```
-
-### Parameters
-
-|Name | Type | Description  | Notes|
-|------------- | ------------- | ------------- | -------------|
-| **status** | **DocumentStatus** |  | (optional) defaults to undefined|
-| **query** | [**string**] |  | (optional) defaults to undefined|
-| **limit** | [**number**] |  | (optional) defaults to 20|
-| **offset** | [**number**] |  | (optional) defaults to 0|
-| **ideSession** | [**string**] |  | (optional) defaults to undefined|
-
-
-### Return type
-
-**Array<DocumentResponse>**
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-|**200** | Successful Response |  -  |
-|**401** | Unauthorized |  -  |
-|**422** | Validation Error |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **registerDocument**
-> DocumentResponse registerDocument()
-
-
-### Example
-
-```typescript
-import {
-    DocumentsApi,
-    Configuration
-} from './api';
-
-const configuration = new Configuration();
-const apiInstance = new DocumentsApi(configuration);
-
-let file: File; // (default to undefined)
-let ideSession: string; // (optional) (default to undefined)
-
-const { status, data } = await apiInstance.registerDocument(
-    file,
-    ideSession
-);
-```
-
-### Parameters
-
-|Name | Type | Description  | Notes|
-|------------- | ------------- | ------------- | -------------|
-| **file** | [**File**] |  | defaults to undefined|
-| **ideSession** | [**string**] |  | (optional) defaults to undefined|
-
-
-### Return type
-
-**DocumentResponse**
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: multipart/form-data
- - **Accept**: application/json
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-|**202** | Successful Response |  -  |
-|**400** | Bad Request |  -  |
-|**401** | Unauthorized |  -  |
-|**413** | Content Too Large |  -  |
-|**415** | Unsupported Media Type |  -  |
+|**422** | Unprocessable Content |  -  |
 |**503** | Service Unavailable |  -  |
-|**422** | Validation Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **validateDocument**
-> DocumentResponse validateDocument()
+# **getLatexPreview**
+> any getLatexPreview()
 
 
 ### Example
 
 ```typescript
 import {
-    DocumentsApi,
+    LatexApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new DocumentsApi(configuration);
+const apiInstance = new LatexApi(configuration);
 
 let documentId: string; // (default to undefined)
 let ideSession: string; // (optional) (default to undefined)
 
-const { status, data } = await apiInstance.validateDocument(
+const { status, data } = await apiInstance.getLatexPreview(
     documentId,
     ideSession
 );
@@ -280,7 +163,7 @@ const { status, data } = await apiInstance.validateDocument(
 
 ### Return type
 
-**DocumentResponse**
+**any**
 
 ### Authorization
 
@@ -298,6 +181,125 @@ No authorization required
 |**200** | Successful Response |  -  |
 |**401** | Unauthorized |  -  |
 |**404** | Not Found |  -  |
+|**422** | Unprocessable Content |  -  |
+|**503** | Service Unavailable |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getLatexProject**
+> LatexProjectResponse getLatexProject()
+
+
+### Example
+
+```typescript
+import {
+    LatexApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new LatexApi(configuration);
+
+let documentId: string; // (default to undefined)
+let ideSession: string; // (optional) (default to undefined)
+
+const { status, data } = await apiInstance.getLatexProject(
+    documentId,
+    ideSession
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **documentId** | [**string**] |  | defaults to undefined|
+| **ideSession** | [**string**] |  | (optional) defaults to undefined|
+
+
+### Return type
+
+**LatexProjectResponse**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | Successful Response |  -  |
+|**401** | Unauthorized |  -  |
+|**404** | Not Found |  -  |
+|**422** | Unprocessable Content |  -  |
+|**503** | Service Unavailable |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **reviewLatexConversion**
+> LatexProjectResponse reviewLatexConversion(conversionReviewCreate)
+
+
+### Example
+
+```typescript
+import {
+    LatexApi,
+    Configuration,
+    ConversionReviewCreate
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new LatexApi(configuration);
+
+let documentId: string; // (default to undefined)
+let conversionReviewCreate: ConversionReviewCreate; //
+let ideSession: string; // (optional) (default to undefined)
+
+const { status, data } = await apiInstance.reviewLatexConversion(
+    documentId,
+    conversionReviewCreate,
+    ideSession
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **conversionReviewCreate** | **ConversionReviewCreate**|  | |
+| **documentId** | [**string**] |  | defaults to undefined|
+| **ideSession** | [**string**] |  | (optional) defaults to undefined|
+
+
+### Return type
+
+**LatexProjectResponse**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | Successful Response |  -  |
+|**401** | Unauthorized |  -  |
+|**404** | Not Found |  -  |
+|**409** | Conflict |  -  |
 |**422** | Unprocessable Content |  -  |
 |**503** | Service Unavailable |  -  |
 

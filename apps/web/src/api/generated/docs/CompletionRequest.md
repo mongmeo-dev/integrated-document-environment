@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **document_id** | **string** |  | [default to undefined]
-**external_edit_result_id** | **string** |  | [default to undefined]
+**latex_revision_id** | **string** |  | [default to undefined]
 
 ## Example
 
@@ -15,7 +15,7 @@ import { CompletionRequest } from './api';
 
 const instance: CompletionRequest = {
     document_id,
-    external_edit_result_id,
+    latex_revision_id,
 };
 ```
 

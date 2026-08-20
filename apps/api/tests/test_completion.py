@@ -1,10 +1,12 @@
 import asyncio
+from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from io import BytesIO
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import text
 
 from ide_api.cmd.api import app
 from ide_api.core.database import async_session
@@ -13,10 +15,10 @@ from ide_api.domains.approvals.models import ApprovalStep, ApprovalWorkflow
 from ide_api.domains.auth.models import User
 from ide_api.domains.changes.models import ChangeProposal, ChangeRequest
 from ide_api.domains.completion import router as completion_router
-from ide_api.domains.documents.models import Document, DocumentVersion
+from ide_api.domains.documents.models import Document
 from ide_api.domains.evidence.models import DocumentEvidenceLink, EvidenceItem
-from ide_api.domains.formatting.models import ExternalEditResult, FormatCheck
 from ide_api.domains.impacts.models import DocumentImpact, DocumentRelationship
+from ide_api.domains.latex.models import LatexRevision
 
 
 class MemoryStorage:
@@ -29,53 +31,40 @@ class MemoryStorage:
         return BytesIO(self.objects[object_key])
 
 
+async def _reset_completion_data() -> None:
+    async with async_session() as session:
+        await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
+        await session.commit()
+
+
 async def _create_document(
     *,
     user_id: UUID,
-    input_kind: str,
-    original_format: str,
-    filename: str,
-    media_type: str,
     object_key: str,
+    pdf: bytes | None = b"compiled PDF",
+    conversion_status: str = "not_required",
+    compile_status: str = "succeeded",
     with_open_gates: bool = False,
 ) -> tuple[UUID, UUID]:
     async with async_session() as session:
         document = Document(id=uuid4())
-        version = DocumentVersion(
+        revision = LatexRevision(
             id=uuid4(),
             document_id=document.id,
-            original_filename=filename,
-            media_type=media_type,
-            size_bytes=1,
-            sha256="0" * 64,
-            object_key=f"source-{uuid4()}",
+            source_object_key=f"private/source-{uuid4()}.zip",
+            source_sha256="0" * 64,
+            entrypoint="main.tex",
+            origin="latex_upload",
+            conversion_status=conversion_status,
+            compile_status=compile_status,
+            compiled_pdf_object_key=object_key if pdf is not None else None,
+            compiled_pdf_sha256=sha256(pdf).hexdigest() if pdf is not None else None,
             created_by_id=user_id,
-            input_kind=input_kind,
-        )
-        result = ExternalEditResult(
-            id=uuid4(),
-            document_id=document.id,
-            document_version_id=version.id,
-            original_format=original_format,
-            original_filename=filename,
-            media_type=media_type,
-            size_bytes=1,
-            sha256="1" * 64,
-            object_key=object_key,
-            created_by_id=user_id,
-            status="passed" if not with_open_gates else "uploaded",
-        )
-        check = FormatCheck(
-            id=uuid4(),
-            external_edit_result_id=result.id,
-            automatic_check_completed=not with_open_gates,
-            visual_review="passed" if not with_open_gates else "pending",
-            unresolved_difference_count=0,
         )
         workflow = ApprovalWorkflow(
             id=uuid4(),
             document_id=document.id,
-            status="completed" if not with_open_gates else "pending",
+            status="pending" if with_open_gates else "completed",
             is_started=True,
         )
         step = ApprovalStep(
@@ -84,9 +73,9 @@ async def _create_document(
             name="Approval",
             assignee_id=user_id,
             sequence=1,
-            status="completed" if not with_open_gates else "current",
+            status="current" if with_open_gates else "completed",
         )
-        session.add_all([document, version, result, check, workflow, step])
+        session.add_all([document, revision, workflow, step])
         if with_open_gates:
             request = ChangeRequest(
                 id=uuid4(),
@@ -136,126 +125,85 @@ async def _create_document(
             )
             session.add_all([request, proposal, relationship, impact, evidence, evidence_link])
         await session.commit()
-        return document.id, result.id
+        return document.id, revision.id
 
 
-async def _resolve_all_gates(document_id: UUID) -> None:
+async def _create_user(email: str) -> UUID:
     async with async_session() as session:
-        requests = (
-            await session.scalars(
-                select(ChangeRequest).where(ChangeRequest.document_id == document_id)
-            )
-        ).all()
-        for change_request in requests:
-            change_request.status = "accepted"
-            proposals = (
-                await session.scalars(
-                    select(ChangeProposal).where(
-                        ChangeProposal.change_request_id == change_request.id
-                    )
-                )
-            ).all()
-            for proposal in proposals:
-                proposal.status = "accepted"
-        relationships = (
-            await session.scalars(
-                select(DocumentRelationship).where(
-                    DocumentRelationship.source_document_id == document_id
-                )
-            )
-        ).all()
-        for relationship in relationships:
-            relationship.status = "confirmed"
-        impacts = (
-            await session.scalars(
-                select(DocumentImpact).where(DocumentImpact.source_document_id == document_id)
-            )
-        ).all()
-        for impact in impacts:
-            impact.status = "confirmed"
-        links = (
-            await session.scalars(
-                select(DocumentEvidenceLink).where(DocumentEvidenceLink.document_id == document_id)
-            )
-        ).all()
-        for link in links:
-            link.status = "confirmed"
-            link.freshness = "current"
-        workflow = await session.scalar(
-            select(ApprovalWorkflow).where(ApprovalWorkflow.document_id == document_id)
+        user = User(
+            email=email,
+            display_name="Completer",
+            password_hash=hash_password("password"),
         )
-        assert workflow is not None
-        workflow.status = "completed"
-        steps = (
-            await session.scalars(
-                select(ApprovalStep).where(ApprovalStep.workflow_id == workflow.id)
-            )
-        ).all()
-        for step in steps:
-            step.status = "completed"
-        result = await session.scalar(
-            select(ExternalEditResult).where(ExternalEditResult.document_id == document_id)
-        )
-        assert result is not None
-        result.status = "passed"
-        check = await session.scalar(
-            select(FormatCheck).where(FormatCheck.external_edit_result_id == result.id)
-        )
-        assert check is not None
-        check.automatic_check_completed = True
-        check.visual_review = "passed"
+        session.add(user)
         await session.commit()
+        return user.id
 
 
 @pytest.fixture
-def completion_client(client: TestClient) -> TestClient:
-    storage = MemoryStorage({"private/docx-object": b"docx", "private/pdf-object": b"pdf"})
+def completion_client(client: TestClient) -> tuple[TestClient, MemoryStorage]:
+    asyncio.run(_reset_completion_data())
+    storage = MemoryStorage(
+        {
+            "private/native.pdf": b"native compiled PDF",
+            "private/accepted.pdf": b"accepted compiled PDF",
+            "private/gated.pdf": b"gated compiled PDF",
+            "private/pending.pdf": b"pending conversion PDF",
+            "private/failed.pdf": b"failed compile PDF",
+            "private/stale.pdf": b"stale compiled PDF",
+            "private/latest.pdf": b"latest compiled PDF",
+            "private/other.pdf": b"other compiled PDF",
+        }
+    )
     app.dependency_overrides[completion_router._storage] = lambda: storage
     try:
-        yield client
+        yield client, storage
     finally:
         app.dependency_overrides.pop(completion_router._storage, None)
 
 
-def test_completion_gates_and_same_format_approval_exports(completion_client: TestClient) -> None:
+def _codes(response: object) -> set[str]:
+    return {reason["code"] for reason in response.json()["blocking_reasons"]}  # type: ignore[attr-defined]
+
+
+def test_completion_requires_reviewed_latest_compiled_latex(
+    completion_client: tuple[TestClient, MemoryStorage],
+) -> None:
+    client, storage = completion_client
     email = f"completion-{uuid4()}@example.com"
+    user_id = asyncio.run(_create_user(email))
 
-    async def create_user() -> UUID:
-        async with async_session() as session:
-            user = User(
-                email=email, display_name="Completer", password_hash=hash_password("password")
-            )
-            session.add(user)
-            await session.commit()
-            return user.id
-
-    user_id = asyncio.run(create_user())
+    native_document_id, native_revision_id = asyncio.run(
+        _create_document(
+            user_id=user_id,
+            object_key="private/native.pdf",
+            pdf=b"native compiled PDF",
+        )
+    )
+    native_payload = {
+        "document_id": str(native_document_id),
+        "latex_revision_id": str(native_revision_id),
+    }
+    assert client.post("/api/v1/completion/evaluate", json=native_payload).status_code == 401
     assert (
-        completion_client.post(
-            "/api/v1/auth/login", json={"email": email, "password": "password"}
-        ).status_code
+        client.post("/api/v1/auth/login", json={"email": email, "password": "password"}).status_code
         == 200
     )
 
-    docx_document_id, docx_result_id = asyncio.run(
-        _create_document(
-            user_id=user_id,
-            input_kind="editable_docx",
-            original_format="docx",
-            filename="approved.docx",
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            object_key="private/docx-object",
-            with_open_gates=True,
-        )
+    missing_revision = client.post(
+        "/api/v1/completion/evaluate",
+        json={"document_id": str(native_document_id), "latex_revision_id": str(uuid4())},
     )
-    payload = {"document_id": str(docx_document_id), "external_edit_result_id": str(docx_result_id)}
-    evaluation = completion_client.post("/api/v1/completion/evaluate", json=payload)
-    assert evaluation.status_code == 200
-    codes = {reason["code"] for reason in evaluation.json()["blocking_reasons"]}
+    assert _codes(missing_revision) == {"latex_revision_not_found"}
+
+    gated_document_id, gated_revision_id = asyncio.run(
+        _create_document(user_id=user_id, object_key="private/gated.pdf", with_open_gates=True)
+    )
+    gated = client.post(
+        "/api/v1/completion/evaluate",
+        json={"document_id": str(gated_document_id), "latex_revision_id": str(gated_revision_id)},
+    )
     assert {
-        "format_result_not_passed",
-        "automatic_check_incomplete",
-        "visual_review_incomplete",
         "pending_change_requests",
         "pending_change_proposals",
         "pending_relationship_candidates",
@@ -263,88 +211,165 @@ def test_completion_gates_and_same_format_approval_exports(completion_client: Te
         "pending_evidence_candidates",
         "stale_evidence",
         "approval_steps_incomplete",
-    } <= codes
-    assert completion_client.post("/api/v1/completion", json=payload).status_code == 409
+    } <= _codes(gated)
     assert (
-        completion_client.get(f"/api/v1/completion/documents/{docx_document_id}/export").status_code
-        == 409
-    )
-
-    asyncio.run(_resolve_all_gates(docx_document_id))
-    completed = completion_client.post("/api/v1/completion", json=payload)
-    assert completed.status_code == 201
-    assert completion_client.post("/api/v1/completion", json=payload).status_code == 409
-    docx_export = completion_client.get(f"/api/v1/completion/documents/{docx_document_id}/export")
-    assert docx_export.status_code == 200
-    assert docx_export.content == b"docx"
-    assert docx_export.headers["content-type"].startswith(
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
-    assert "approved.docx" in docx_export.headers["content-disposition"]
-    assert "private/docx-object" not in str(dict(docx_export.headers))
-
-    pdf_document_id, pdf_result_id = asyncio.run(
-        _create_document(
-            user_id=user_id,
-            input_kind="text_pdf",
-            original_format="pdf",
-            filename="approved.pdf",
-            media_type="application/pdf",
-            object_key="private/pdf-object",
-        )
-    )
-    pdf_payload = {
-        "document_id": str(pdf_document_id),
-        "external_edit_result_id": str(pdf_result_id),
-    }
-    assert completion_client.post("/api/v1/completion", json=pdf_payload).status_code == 201
-    pdf_export = completion_client.get(f"/api/v1/completion/documents/{pdf_document_id}/export")
-    assert pdf_export.status_code == 200
-    assert pdf_export.content == b"pdf"
-    assert pdf_export.headers["content-type"].startswith("application/pdf")
-    assert "approved.pdf" in pdf_export.headers["content-disposition"]
-    assert "private/pdf-object" not in str(dict(pdf_export.headers))
-
-    scanned_document_id, scanned_result_id = asyncio.run(
-        _create_document(
-            user_id=user_id,
-            input_kind="scanned_pdf",
-            original_format="pdf",
-            filename="scan.pdf",
-            media_type="application/pdf",
-            object_key="private/scan-pdf-object",
-        )
-    )
-    scanned_payload = {
-        "document_id": str(scanned_document_id),
-        "external_edit_result_id": str(scanned_result_id),
-    }
-    scanned = completion_client.post("/api/v1/completion/evaluate", json=scanned_payload)
-    assert {reason["code"] for reason in scanned.json()["blocking_reasons"]} == {"scanned_pdf"}
-    assert completion_client.post("/api/v1/completion", json=scanned_payload).status_code == 409
-    assert (
-        completion_client.get(
-            f"/api/v1/completion/documents/{scanned_document_id}/export"
+        client.post(
+            "/api/v1/completion",
+            json={
+                "document_id": str(gated_document_id),
+                "latex_revision_id": str(gated_revision_id),
+            },
         ).status_code
         == 409
     )
 
-    cross_document_id, cross_result_id = asyncio.run(
+    pending_document_id, pending_revision_id = asyncio.run(
         _create_document(
             user_id=user_id,
-            input_kind="text_pdf",
-            original_format="docx",
-            filename="cross.docx",
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            object_key="private/cross-docx-object",
+            object_key="private/pending.pdf",
+            conversion_status="pending_review",
         )
     )
-    cross_payload = {
-        "document_id": str(cross_document_id),
-        "external_edit_result_id": str(cross_result_id),
-    }
-    cross = completion_client.post("/api/v1/completion/evaluate", json=cross_payload)
-    assert {reason["code"] for reason in cross.json()["blocking_reasons"]} == {
-        "cross_format_result"
-    }
-    assert completion_client.post("/api/v1/completion", json=cross_payload).status_code == 409
+    pending = client.post(
+        "/api/v1/completion/evaluate",
+        json={
+            "document_id": str(pending_document_id),
+            "latex_revision_id": str(pending_revision_id),
+        },
+    )
+    assert _codes(pending) == {"conversion_review_pending"}
+
+    failed_document_id, failed_revision_id = asyncio.run(
+        _create_document(
+            user_id=user_id,
+            object_key="private/failed.pdf",
+            compile_status="failed",
+        )
+    )
+    failed = client.post(
+        "/api/v1/completion/evaluate",
+        json={"document_id": str(failed_document_id), "latex_revision_id": str(failed_revision_id)},
+    )
+    assert _codes(failed) == {"compile_failed"}
+
+    compiling_document_id, compiling_revision_id = asyncio.run(
+        _create_document(
+            user_id=user_id,
+            object_key="private/compiling.pdf",
+            compile_status="pending",
+        )
+    )
+    compiling = client.post(
+        "/api/v1/completion/evaluate",
+        json={
+            "document_id": str(compiling_document_id),
+            "latex_revision_id": str(compiling_revision_id),
+        },
+    )
+    assert _codes(compiling) == {"compile_incomplete"}
+
+    missing_pdf_document_id, missing_pdf_revision_id = asyncio.run(
+        _create_document(user_id=user_id, object_key="private/missing.pdf", pdf=None)
+    )
+    missing_pdf = client.post(
+        "/api/v1/completion/evaluate",
+        json={
+            "document_id": str(missing_pdf_document_id),
+            "latex_revision_id": str(missing_pdf_revision_id),
+        },
+    )
+    assert _codes(missing_pdf) == {"compiled_pdf_missing"}
+
+    rejected_document_id, rejected_revision_id = asyncio.run(
+        _create_document(
+            user_id=user_id,
+            object_key="private/rejected.pdf",
+            conversion_status="rejected",
+        )
+    )
+    rejected = client.post(
+        "/api/v1/completion/evaluate",
+        json={
+            "document_id": str(rejected_document_id),
+            "latex_revision_id": str(rejected_revision_id),
+        },
+    )
+    assert _codes(rejected) == {"conversion_rejected"}
+
+    stale_document_id, stale_revision_id = asyncio.run(
+        _create_document(user_id=user_id, object_key="private/stale.pdf")
+    )
+
+    async def add_latest() -> UUID:
+        async with async_session() as session:
+            revision = LatexRevision(
+                id=uuid4(),
+                document_id=stale_document_id,
+                source_object_key=f"private/source-{uuid4()}.zip",
+                source_sha256="1" * 64,
+                entrypoint="main.tex",
+                origin="web_edit",
+                conversion_status="not_required",
+                compile_status="succeeded",
+                compiled_pdf_object_key="private/latest.pdf",
+                compiled_pdf_sha256=sha256(b"latest compiled PDF").hexdigest(),
+                created_by_id=user_id,
+                created_at=datetime.now(UTC) + timedelta(seconds=1),
+            )
+            session.add(revision)
+            await session.commit()
+            return revision.id
+
+    asyncio.run(add_latest())
+    stale = client.post(
+        "/api/v1/completion/evaluate",
+        json={"document_id": str(stale_document_id), "latex_revision_id": str(stale_revision_id)},
+    )
+    assert _codes(stale) == {"latex_revision_not_latest"}
+
+    other_document_id, other_revision_id = asyncio.run(
+        _create_document(user_id=user_id, object_key="private/other.pdf")
+    )
+    assert other_document_id != native_document_id
+    mismatch = client.post(
+        "/api/v1/completion/evaluate",
+        json={"document_id": str(native_document_id), "latex_revision_id": str(other_revision_id)},
+    )
+    assert _codes(mismatch) == {"latex_revision_document_mismatch"}
+
+    completed = client.post("/api/v1/completion", json=native_payload)
+    assert completed.status_code == 201
+    assert completed.json()["latex_revision_id"] == str(native_revision_id)
+    assert completed.json()["compiled_pdf_sha256"] == sha256(b"native compiled PDF").hexdigest()
+    assert client.post("/api/v1/completion", json=native_payload).status_code == 409
+
+    exported = client.get(f"/api/v1/completion/documents/{native_document_id}/export")
+    assert exported.status_code == 200
+    assert exported.content == b"native compiled PDF"
+    assert exported.headers["content-type"].startswith("application/pdf")
+    assert f"{native_document_id}.pdf" in exported.headers["content-disposition"]
+    assert "private/native.pdf" not in str(dict(exported.headers))
+    assert storage.downloaded_keys == ["private/native.pdf"]
+
+    storage.objects["private/native.pdf"] = b"corrupt PDF"
+    assert (
+        client.get(f"/api/v1/completion/documents/{native_document_id}/export").status_code == 503
+    )
+
+    accepted_document_id, accepted_revision_id = asyncio.run(
+        _create_document(
+            user_id=user_id,
+            object_key="private/accepted.pdf",
+            conversion_status="accepted",
+        )
+    )
+    assert (
+        client.post(
+            "/api/v1/completion",
+            json={
+                "document_id": str(accepted_document_id),
+                "latex_revision_id": str(accepted_revision_id),
+            },
+        ).status_code
+        == 201
+    )

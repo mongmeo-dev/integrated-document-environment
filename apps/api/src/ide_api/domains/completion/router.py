@@ -1,16 +1,18 @@
+from hashlib import sha256
+from io import BytesIO
 from typing import Annotated, BinaryIO
 from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 
 from ide_api.api.dependencies import CurrentUser, DbSession
 from ide_api.domains.auth.schemas import ApiError
 from ide_api.domains.completion.repository import CompletionRepository
 from ide_api.domains.completion.schemas import (
     CompletionEvaluation,
+    CompletionRequest,
     DocumentCompletionResponse,
 )
 from ide_api.domains.completion.service import (
@@ -21,11 +23,6 @@ from ide_api.domains.completion.service import (
 from ide_api.infrastructure.object_storage import ObjectStorage
 
 router = APIRouter(prefix="/completion", tags=["completion"])
-
-
-class CompletionRequest(BaseModel):
-    document_id: UUID
-    external_edit_result_id: UUID
 
 
 def _service(session: DbSession) -> CompletionService:
@@ -71,7 +68,7 @@ async def evaluate_completion(
 ) -> CompletionEvaluation:
     return await _service(db_session).evaluate(
         document_id=request.document_id,
-        external_edit_result_id=request.external_edit_result_id,
+        latex_revision_id=request.latex_revision_id,
     )
 
 
@@ -90,7 +87,7 @@ async def complete_document(
     try:
         completion = await _service(db_session).complete(
             document_id=request.document_id,
-            external_edit_result_id=request.external_edit_result_id,
+            latex_revision_id=request.latex_revision_id,
             completed_by_id=current_user.id,
         )
     except CompletionBlockedError as error:
@@ -129,14 +126,18 @@ async def download_approval_export(
         raise _conflict_error(
             "document_not_completed", "Document must be completed before approval export."
         )
-    result_data = await repository.get_external_result(completion.external_edit_result_id)
-    if result_data is None:
-        raise _not_found_error("external_edit_result")
-    result, _, _ = result_data
+    if completion.latex_revision_id is None:
+        raise _conflict_error(
+            "completion_latex_revision_missing",
+            "Completed document has no pinned LaTeX revision.",
+        )
+    revision = await repository.get_latex_revision(completion.latex_revision_id)
+    if revision is None:
+        raise _not_found_error("latex_revision")
 
     evaluation = await _service(db_session).evaluate(
         document_id=document_id,
-        external_edit_result_id=completion.external_edit_result_id,
+        latex_revision_id=completion.latex_revision_id,
     )
     blocking_reasons = [
         reason
@@ -147,9 +148,24 @@ async def download_approval_export(
         raise _conflict_error(
             "approval_export_blocked", "Approval export is blocked by outstanding gates."
         )
+    if (
+        revision.compile_status != "succeeded"
+        or revision.compiled_pdf_object_key is None
+        or revision.compiled_pdf_sha256 is None
+        or completion.compiled_pdf_sha256 is None
+        or completion.compiled_pdf_sha256 != revision.compiled_pdf_sha256
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=ApiError(
+                code="approval_export_integrity_failed",
+                message="Approval export integrity verification failed.",
+            ).model_dump(),
+        )
 
     try:
-        content: BinaryIO = storage.download(result.object_key)
+        content: BinaryIO = storage.download(revision.compiled_pdf_object_key)
+        pdf = content.read()
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -158,8 +174,16 @@ async def download_approval_export(
                 message="Approval export is temporarily unavailable.",
             ).model_dump(),
         ) from None
+    if sha256(pdf).hexdigest() != completion.compiled_pdf_sha256:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=ApiError(
+                code="approval_export_integrity_failed",
+                message="Approval export integrity verification failed.",
+            ).model_dump(),
+        )
     return StreamingResponse(
-        content,
-        media_type=result.media_type,
-        headers={"Content-Disposition": _attachment_filename(result.original_filename)},
+        BytesIO(pdf),
+        media_type="application/pdf",
+        headers={"Content-Disposition": _attachment_filename(f"{document_id}.pdf")},
     )

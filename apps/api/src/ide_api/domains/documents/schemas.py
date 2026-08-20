@@ -13,7 +13,8 @@ class DocumentStatus(StrEnum):
 
 
 class InputKind(StrEnum):
-    EDITABLE_DOCX = "editable_docx"
+    LATEX_PROJECT = "latex_project"
+    DOCX_IMPORT = "docx_import"
     TEXT_PDF = "text_pdf"
     SCANNED_PDF = "scanned_pdf"
 
@@ -30,8 +31,9 @@ class OriginalFileResponse(BaseModel):
 
 class DocumentCapabilities(BaseModel):
     analysis: bool
-    external_edit_round_trip: bool
-    format_comparison: bool
+    source_editing: bool
+    compilation: bool
+    conversion_review: bool
     approved_output: bool
 
 

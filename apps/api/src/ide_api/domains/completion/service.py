@@ -10,7 +10,6 @@ from ide_api.domains.completion.schemas import (
     CompletionBlockingReason,
     CompletionEvaluation,
 )
-from ide_api.domains.formatting.models import FormatCheck
 
 
 class CompletionBlockedError(Exception):
@@ -28,28 +27,37 @@ class CompletionService:
         self._session = session
         self._repository = CompletionRepository(session)
 
-    async def evaluate(
-        self, *, document_id: UUID, external_edit_result_id: UUID
-    ) -> CompletionEvaluation:
+    async def evaluate(self, *, document_id: UUID, latex_revision_id: UUID) -> CompletionEvaluation:
         reasons: list[CompletionBlockingReason] = []
         if not await self._repository.document_exists(document_id):
             self._add(reasons, CompletionBlockingCode.DOCUMENT_NOT_FOUND)
             return CompletionEvaluation(
                 document_id=document_id,
-                external_edit_result_id=external_edit_result_id,
+                latex_revision_id=latex_revision_id,
                 blocking_reasons=reasons,
             )
 
-        external_result = await self._repository.get_external_result(external_edit_result_id)
-        if external_result is None:
-            self._add(reasons, CompletionBlockingCode.EXTERNAL_EDIT_RESULT_NOT_FOUND)
+        revision = await self._repository.get_latex_revision(latex_revision_id)
+        if revision is None:
+            self._add(reasons, CompletionBlockingCode.LATEX_REVISION_NOT_FOUND)
+        elif revision.document_id != document_id:
+            self._add(reasons, CompletionBlockingCode.LATEX_REVISION_DOCUMENT_MISMATCH)
         else:
-            result, version, check = external_result
-            if result.document_id != document_id or version.document_id != document_id:
-                self._add(reasons, CompletionBlockingCode.EXTERNAL_EDIT_RESULT_DOCUMENT_MISMATCH)
-            self._evaluate_format(
-                reasons, result.status, result.original_format, version.input_kind, check
-            )
+            latest_revision = await self._repository.get_latest_latex_revision(document_id)
+            if latest_revision is None:
+                self._add(reasons, CompletionBlockingCode.LATEX_PROJECT_MISSING)
+            elif latest_revision.id != revision.id:
+                self._add(reasons, CompletionBlockingCode.LATEX_REVISION_NOT_LATEST)
+            if revision.compile_status == "pending":
+                self._add(reasons, CompletionBlockingCode.COMPILE_INCOMPLETE)
+            elif revision.compile_status == "failed":
+                self._add(reasons, CompletionBlockingCode.COMPILE_FAILED)
+            elif revision.compiled_pdf_object_key is None or revision.compiled_pdf_sha256 is None:
+                self._add(reasons, CompletionBlockingCode.COMPILED_PDF_MISSING)
+            if revision.conversion_status == "pending_review":
+                self._add(reasons, CompletionBlockingCode.CONVERSION_REVIEW_PENDING)
+            elif revision.conversion_status == "rejected":
+                self._add(reasons, CompletionBlockingCode.CONVERSION_REJECTED)
 
         counts = await self._repository.get_gate_counts(document_id)
         self._add_count(
@@ -93,7 +101,7 @@ class CompletionService:
 
         return CompletionEvaluation(
             document_id=document_id,
-            external_edit_result_id=external_edit_result_id,
+            latex_revision_id=latex_revision_id,
             blocking_reasons=reasons,
         )
 
@@ -101,35 +109,40 @@ class CompletionService:
         self,
         *,
         document_id: UUID,
-        external_edit_result_id: UUID,
+        latex_revision_id: UUID,
         completed_by_id: UUID,
     ) -> DocumentCompletion:
         evaluation = await self.evaluate(
             document_id=document_id,
-            external_edit_result_id=external_edit_result_id,
+            latex_revision_id=latex_revision_id,
         )
         if not evaluation.is_complete_allowed:
             raise CompletionBlockedError(evaluation)
 
-        external_result = await self._repository.get_external_result(external_edit_result_id)
-        if external_result is None:
+        revision = await self._repository.get_latex_revision(latex_revision_id)
+        if (
+            revision is None
+            or revision.document_id != document_id
+            or revision.compile_status != "succeeded"
+            or revision.compiled_pdf_object_key is None
+            or revision.compiled_pdf_sha256 is None
+        ):
             raise CompletionBlockedError(
                 CompletionEvaluation(
                     document_id=document_id,
-                    external_edit_result_id=external_edit_result_id,
+                    latex_revision_id=latex_revision_id,
                     blocking_reasons=[
                         CompletionBlockingReason(
-                            code=CompletionBlockingCode.EXTERNAL_EDIT_RESULT_NOT_FOUND,
+                            code=CompletionBlockingCode.LATEX_REVISION_NOT_FOUND,
                             count=1,
                         )
                     ],
                 )
             )
-        result, _, _ = external_result
         completion = DocumentCompletion(
             document_id=document_id,
-            external_edit_result_id=external_edit_result_id,
-            original_format=result.original_format,
+            latex_revision_id=latex_revision_id,
+            compiled_pdf_sha256=revision.compiled_pdf_sha256,
             completed_by_id=completed_by_id,
         )
         self._repository.add(completion)
@@ -139,40 +152,6 @@ class CompletionService:
             await self._session.rollback()
             raise CompletionAlreadyExistsError from error
         return completion
-
-    @staticmethod
-    def _evaluate_format(
-        reasons: list[CompletionBlockingReason],
-        result_status: str,
-        result_format: str,
-        input_kind: str | None,
-        check: FormatCheck | None,
-    ) -> None:
-        if input_kind == "scanned_pdf":
-            CompletionService._add(reasons, CompletionBlockingCode.SCANNED_PDF)
-            return
-        expected_format = {"editable_docx": "docx", "text_pdf": "pdf"}.get(input_kind)
-        if expected_format is None:
-            CompletionService._add(reasons, CompletionBlockingCode.UNSUPPORTED_ORIGINAL_FORMAT)
-            return
-        if result_format != expected_format:
-            CompletionService._add(reasons, CompletionBlockingCode.CROSS_FORMAT_RESULT)
-        if result_status != "passed":
-            CompletionService._add(reasons, CompletionBlockingCode.FORMAT_RESULT_NOT_PASSED)
-        if check is None:
-            CompletionService._add(reasons, CompletionBlockingCode.AUTOMATIC_CHECK_INCOMPLETE)
-            CompletionService._add(reasons, CompletionBlockingCode.VISUAL_REVIEW_INCOMPLETE)
-            return
-        if not check.automatic_check_completed:
-            CompletionService._add(reasons, CompletionBlockingCode.AUTOMATIC_CHECK_INCOMPLETE)
-        if check.visual_review != "passed":
-            CompletionService._add(reasons, CompletionBlockingCode.VISUAL_REVIEW_INCOMPLETE)
-        if check.unresolved_difference_count > 0:
-            CompletionService._add(
-                reasons,
-                CompletionBlockingCode.UNRESOLVED_FORMAT_DIFFERENCES,
-                check.unresolved_difference_count,
-            )
 
     @staticmethod
     def _add(reasons: list[CompletionBlockingReason], code: CompletionBlockingCode) -> None:

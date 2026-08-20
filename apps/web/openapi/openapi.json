@@ -492,6 +492,95 @@
         }
       }
     },
+    "/api/v1/documents/{document_id}/original": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Download Original Document",
+        "operationId": "downloadOriginalDocument",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "ide_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ide Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/documents/{document_id}/validate": {
       "post": {
         "tags": [
@@ -557,6 +646,16 @@
             },
             "description": "Not Found"
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
           "503": {
             "content": {
               "application/json": {
@@ -566,16 +665,482 @@
               }
             },
             "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/latex": {
+      "get": {
+        "tags": [
+          "latex"
+        ],
+        "summary": "Get Latex Project",
+        "operationId": "getLatexProject",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
           },
-          "422": {
-            "description": "Validation Error",
+          {
+            "name": "ide_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ide Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/LatexProjectResponse"
                 }
               }
             }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/latex/revisions": {
+      "post": {
+        "tags": [
+          "latex"
+        ],
+        "summary": "Create Latex Source Revision",
+        "operationId": "createLatexSourceRevision",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "ide_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ide Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LatexSourceRevisionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LatexProjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/latex/conversion-reviews": {
+      "post": {
+        "tags": [
+          "latex"
+        ],
+        "summary": "Review Latex Conversion",
+        "operationId": "reviewLatexConversion",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "ide_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ide Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversionReviewCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LatexProjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/latex/preview": {
+      "get": {
+        "tags": [
+          "latex"
+        ],
+        "summary": "Get Latex Preview",
+        "operationId": "getLatexPreview",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "ide_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ide Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/latex/bundle": {
+      "get": {
+        "tags": [
+          "latex"
+        ],
+        "summary": "Get Latex Bundle",
+        "operationId": "getLatexBundle",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "ide_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ide Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
           }
         }
       }
@@ -3130,721 +3695,6 @@
         }
       }
     },
-    "/api/v1/formatting/external-results": {
-      "post": {
-        "tags": [
-          "formatting"
-        ],
-        "summary": "Collect External Edit Result",
-        "operationId": "collectExternalEditResult",
-        "parameters": [
-          {
-            "name": "ide_session",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ide Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_collectExternalEditResult"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Collectexternaleditresult"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Content Too Large"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/formatting/documents/{document_id}/external-results": {
-      "get": {
-        "tags": [
-          "formatting"
-        ],
-        "summary": "List External Edit Results",
-        "operationId": "listExternalEditResults",
-        "parameters": [
-          {
-            "name": "document_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Document Id"
-            }
-          },
-          {
-            "name": "ide_session",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ide Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ExternalEditResultResponse"
-                  },
-                  "title": "Response Listexternaleditresults"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/formatting/external-results/{external_edit_result_id}": {
-      "get": {
-        "tags": [
-          "formatting"
-        ],
-        "summary": "Get External Edit Result",
-        "operationId": "getExternalEditResult",
-        "parameters": [
-          {
-            "name": "external_edit_result_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "External Edit Result Id"
-            }
-          },
-          {
-            "name": "ide_session",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ide Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalEditResultResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/formatting/external-results/{external_edit_result_id}/automatic-check": {
-      "post": {
-        "tags": [
-          "formatting"
-        ],
-        "summary": "Run Automatic Check",
-        "operationId": "runExternalResultAutomaticFormatCheck",
-        "parameters": [
-          {
-            "name": "external_edit_result_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "External Edit Result Id"
-            }
-          },
-          {
-            "name": "ide_session",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ide Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FormatCheckResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/formatting/external-results/{external_edit_result_id}/format-check": {
-      "get": {
-        "tags": [
-          "formatting"
-        ],
-        "summary": "Get Format Check",
-        "operationId": "getExternalResultFormatCheck",
-        "parameters": [
-          {
-            "name": "external_edit_result_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "External Edit Result Id"
-            }
-          },
-          {
-            "name": "ide_session",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ide Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FormatCheckResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/formatting/external-results/{external_edit_result_id}/visual-review": {
-      "patch": {
-        "tags": [
-          "formatting"
-        ],
-        "summary": "Complete Visual Review",
-        "operationId": "completeExternalResultVisualReview",
-        "parameters": [
-          {
-            "name": "external_edit_result_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "External Edit Result Id"
-            }
-          },
-          {
-            "name": "ide_session",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ide Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_completeExternalResultVisualReview"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FormatCheckResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/formatting/differences/{difference_id}/resolve": {
-      "post": {
-        "tags": [
-          "formatting"
-        ],
-        "summary": "Resolve Difference",
-        "operationId": "resolveExternalResultFormatDifference",
-        "parameters": [
-          {
-            "name": "difference_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Difference Id"
-            }
-          },
-          {
-            "name": "ide_session",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ide Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FormatDifferenceResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/formatting/external-results/{external_edit_result_id}/approval-allowed": {
-      "get": {
-        "tags": [
-          "formatting"
-        ],
-        "summary": "Get Approval Allowed",
-        "operationId": "getExternalResultApprovalAllowed",
-        "parameters": [
-          {
-            "name": "external_edit_result_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "External Edit Result Id"
-            }
-          },
-          {
-            "name": "ide_session",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ide Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "boolean"
-                  },
-                  "title": "Response Getexternalresultapprovalallowed"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/approvals": {
       "post": {
         "tags": [
@@ -5121,44 +4971,6 @@
         ],
         "title": "ApprovalWorkflowResponse"
       },
-      "Body_collectExternalEditResult": {
-        "properties": {
-          "document_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Document Id"
-          },
-          "document_version_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Document Version Id"
-          },
-          "file": {
-            "type": "string",
-            "contentMediaType": "application/octet-stream",
-            "title": "File"
-          }
-        },
-        "type": "object",
-        "required": [
-          "document_id",
-          "document_version_id",
-          "file"
-        ],
-        "title": "Body_collectExternalEditResult"
-      },
-      "Body_completeExternalResultVisualReview": {
-        "properties": {
-          "visual_review": {
-            "$ref": "#/components/schemas/VisualReviewStatus"
-          }
-        },
-        "type": "object",
-        "required": [
-          "visual_review"
-        ],
-        "title": "Body_completeExternalResultVisualReview"
-      },
       "Body_createEvidenceFile": {
         "properties": {
           "title": {
@@ -5596,19 +5408,28 @@
         ],
         "title": "ChangeRequestTransition"
       },
+      "CompileStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "succeeded",
+          "failed"
+        ],
+        "title": "CompileStatus"
+      },
       "CompletionBlockingCode": {
         "type": "string",
         "enum": [
           "document_not_found",
-          "external_edit_result_not_found",
-          "external_edit_result_document_mismatch",
-          "scanned_pdf",
-          "unsupported_original_format",
-          "cross_format_result",
-          "format_result_not_passed",
-          "automatic_check_incomplete",
-          "visual_review_incomplete",
-          "unresolved_format_differences",
+          "latex_project_missing",
+          "latex_revision_not_found",
+          "latex_revision_document_mismatch",
+          "latex_revision_not_latest",
+          "compile_incomplete",
+          "compile_failed",
+          "compiled_pdf_missing",
+          "conversion_review_pending",
+          "conversion_rejected",
           "pending_change_requests",
           "pending_change_proposals",
           "pending_relationship_candidates",
@@ -5646,10 +5467,10 @@
             "format": "uuid",
             "title": "Document Id"
           },
-          "external_edit_result_id": {
+          "latex_revision_id": {
             "type": "string",
             "format": "uuid",
-            "title": "External Edit Result Id"
+            "title": "Latex Revision Id"
           },
           "blocking_reasons": {
             "items": {
@@ -5662,7 +5483,7 @@
         "type": "object",
         "required": [
           "document_id",
-          "external_edit_result_id"
+          "latex_revision_id"
         ],
         "title": "CompletionEvaluation"
       },
@@ -5673,18 +5494,61 @@
             "format": "uuid",
             "title": "Document Id"
           },
-          "external_edit_result_id": {
+          "latex_revision_id": {
             "type": "string",
             "format": "uuid",
-            "title": "External Edit Result Id"
+            "title": "Latex Revision Id"
           }
         },
         "type": "object",
         "required": [
           "document_id",
-          "external_edit_result_id"
+          "latex_revision_id"
         ],
         "title": "CompletionRequest"
+      },
+      "ConversionDecision": {
+        "type": "string",
+        "enum": [
+          "accepted",
+          "rejected"
+        ],
+        "title": "ConversionDecision"
+      },
+      "ConversionReviewCreate": {
+        "properties": {
+          "expected_revision_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Expected Revision Id"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/ConversionDecision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_revision_id",
+          "decision",
+          "reason"
+        ],
+        "title": "ConversionReviewCreate"
+      },
+      "ConversionStatus": {
+        "type": "string",
+        "enum": [
+          "not_required",
+          "pending_review",
+          "accepted",
+          "rejected"
+        ],
+        "title": "ConversionStatus"
       },
       "DocumentCandidatesResponse": {
         "properties": {
@@ -5720,13 +5584,17 @@
             "type": "boolean",
             "title": "Analysis"
           },
-          "external_edit_round_trip": {
+          "source_editing": {
             "type": "boolean",
-            "title": "External Edit Round Trip"
+            "title": "Source Editing"
           },
-          "format_comparison": {
+          "compilation": {
             "type": "boolean",
-            "title": "Format Comparison"
+            "title": "Compilation"
+          },
+          "conversion_review": {
+            "type": "boolean",
+            "title": "Conversion Review"
           },
           "approved_output": {
             "type": "boolean",
@@ -5736,8 +5604,9 @@
         "type": "object",
         "required": [
           "analysis",
-          "external_edit_round_trip",
-          "format_comparison",
+          "source_editing",
+          "compilation",
+          "conversion_review",
           "approved_output"
         ],
         "title": "DocumentCapabilities"
@@ -5754,14 +5623,14 @@
             "format": "uuid",
             "title": "Document Id"
           },
-          "external_edit_result_id": {
+          "latex_revision_id": {
             "type": "string",
             "format": "uuid",
-            "title": "External Edit Result Id"
+            "title": "Latex Revision Id"
           },
-          "original_format": {
+          "compiled_pdf_sha256": {
             "type": "string",
-            "title": "Original Format"
+            "title": "Compiled Pdf Sha256"
           },
           "completed_by_id": {
             "type": "string",
@@ -5778,8 +5647,8 @@
         "required": [
           "id",
           "document_id",
-          "external_edit_result_id",
-          "original_format",
+          "latex_revision_id",
+          "compiled_pdf_sha256",
           "completed_by_id",
           "completed_at"
         ],
@@ -6531,209 +6400,6 @@
         ],
         "title": "EvidenceType"
       },
-      "ExternalEditResultResponse": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "document_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Document Id"
-          },
-          "document_version_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Document Version Id"
-          },
-          "original_format": {
-            "$ref": "#/components/schemas/OriginalFormat"
-          },
-          "original_filename": {
-            "type": "string",
-            "title": "Original Filename"
-          },
-          "media_type": {
-            "type": "string",
-            "title": "Media Type"
-          },
-          "size_bytes": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Size Bytes"
-          },
-          "sha256": {
-            "type": "string",
-            "title": "Sha256"
-          },
-          "object_key": {
-            "type": "string",
-            "title": "Object Key"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ExternalEditResultStatus"
-          },
-          "created_by_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Created By Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "format_check": {
-            "$ref": "#/components/schemas/FormatCheckResponse"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "document_id",
-          "document_version_id",
-          "original_format",
-          "original_filename",
-          "media_type",
-          "size_bytes",
-          "sha256",
-          "object_key",
-          "status",
-          "created_by_id",
-          "created_at",
-          "format_check"
-        ],
-        "title": "ExternalEditResultResponse"
-      },
-      "ExternalEditResultStatus": {
-        "type": "string",
-        "enum": [
-          "uploaded",
-          "checking",
-          "needs_revision",
-          "passed"
-        ],
-        "title": "ExternalEditResultStatus"
-      },
-      "FormatCheckResponse": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "external_edit_result_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "External Edit Result Id"
-          },
-          "automatic_check_completed": {
-            "type": "boolean",
-            "title": "Automatic Check Completed"
-          },
-          "visual_review": {
-            "$ref": "#/components/schemas/VisualReviewStatus"
-          },
-          "unresolved_difference_count": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Unresolved Difference Count"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          },
-          "differences": {
-            "items": {
-              "$ref": "#/components/schemas/FormatDifferenceResponse"
-            },
-            "type": "array",
-            "title": "Differences"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "external_edit_result_id",
-          "automatic_check_completed",
-          "visual_review",
-          "unresolved_difference_count",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "FormatCheckResponse"
-      },
-      "FormatDifferenceCategory": {
-        "type": "string",
-        "enum": [
-          "font",
-          "color",
-          "table",
-          "margin",
-          "line_spacing",
-          "font_size",
-          "other"
-        ],
-        "title": "FormatDifferenceCategory"
-      },
-      "FormatDifferenceResponse": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "format_check_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Format Check Id"
-          },
-          "category": {
-            "$ref": "#/components/schemas/FormatDifferenceCategory"
-          },
-          "location": {
-            "type": "string",
-            "title": "Location"
-          },
-          "original_value": {
-            "type": "string",
-            "title": "Original Value"
-          },
-          "proposed_value": {
-            "type": "string",
-            "title": "Proposed Value"
-          },
-          "resolved": {
-            "type": "boolean",
-            "title": "Resolved"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "format_check_id",
-          "category",
-          "location",
-          "original_value",
-          "proposed_value",
-          "resolved",
-          "created_at"
-        ],
-        "title": "FormatDifferenceResponse"
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -6852,11 +6518,124 @@
       "InputKind": {
         "type": "string",
         "enum": [
-          "editable_docx",
+          "latex_project",
+          "docx_import",
           "text_pdf",
           "scanned_pdf"
         ],
         "title": "InputKind"
+      },
+      "LatexProjectResponse": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Revision Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "entrypoint": {
+            "type": "string",
+            "title": "Entrypoint"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "source_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/RevisionOrigin"
+          },
+          "conversion_status": {
+            "$ref": "#/components/schemas/ConversionStatus"
+          },
+          "compile_status": {
+            "$ref": "#/components/schemas/CompileStatus"
+          },
+          "compile_log": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compile Log"
+          },
+          "compiled_pdf_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compiled Pdf Sha256"
+          },
+          "preview_available": {
+            "type": "boolean",
+            "title": "Preview Available"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision_id",
+          "document_id",
+          "entrypoint",
+          "source",
+          "source_sha256",
+          "files",
+          "origin",
+          "conversion_status",
+          "compile_status",
+          "compile_log",
+          "preview_available",
+          "created_at"
+        ],
+        "title": "LatexProjectResponse"
+      },
+      "LatexSourceRevisionCreate": {
+        "properties": {
+          "expected_revision_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Expected Revision Id"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 2000000,
+            "minLength": 1,
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_revision_id",
+          "source"
+        ],
+        "title": "LatexSourceRevisionCreate"
       },
       "LoginRequest": {
         "properties": {
@@ -6912,14 +6691,6 @@
         ],
         "title": "OriginalFileResponse"
       },
-      "OriginalFormat": {
-        "type": "string",
-        "enum": [
-          "docx",
-          "pdf"
-        ],
-        "title": "OriginalFormat"
-      },
       "RelationshipType": {
         "type": "string",
         "enum": [
@@ -6929,6 +6700,15 @@
           "screenshot"
         ],
         "title": "RelationshipType"
+      },
+      "RevisionOrigin": {
+        "type": "string",
+        "enum": [
+          "latex_upload",
+          "docx_conversion",
+          "web_edit"
+        ],
+        "title": "RevisionOrigin"
       },
       "UserResponse": {
         "properties": {
@@ -6993,15 +6773,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "VisualReviewStatus": {
-        "type": "string",
-        "enum": [
-          "pending",
-          "passed",
-          "failed"
-        ],
-        "title": "VisualReviewStatus"
       }
     }
   }

@@ -2,20 +2,16 @@ import asyncio
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import text
 
 from ide_api.core.database import async_session
 from ide_api.core.security import hash_password
-from ide_api.domains.auth.models import User, UserSession
-from ide_api.domains.documents.models import Document, DocumentVersion
+from ide_api.domains.auth.models import User
 
 
 async def _reset_auth_data() -> None:
     async with async_session() as session:
-        await session.execute(delete(DocumentVersion))
-        await session.execute(delete(Document))
-        await session.execute(delete(UserSession))
-        await session.execute(delete(User))
+        await session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
         session.add(
             User(
                 email="developer@neudive.com",

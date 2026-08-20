@@ -1,19 +1,21 @@
-# BodyCompleteExternalResultVisualReview
+# LatexSourceRevisionCreate
 
 
 ## Properties
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**visual_review** | [**VisualReviewStatus**](VisualReviewStatus.md) |  | [default to undefined]
+**expected_revision_id** | **string** |  | [default to undefined]
+**source** | **string** |  | [default to undefined]
 
 ## Example
 
 ```typescript
-import { BodyCompleteExternalResultVisualReview } from './api';
+import { LatexSourceRevisionCreate } from './api';
 
-const instance: BodyCompleteExternalResultVisualReview = {
-    visual_review,
+const instance: LatexSourceRevisionCreate = {
+    expected_revision_id,
+    source,
 };
 ```
 

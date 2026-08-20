@@ -1,14 +1,14 @@
-# ExternalEditResultStatus
+# ConversionStatus
 
 
 ## Enum
 
-* `Uploaded` (value: `'uploaded'`)
+* `NotRequired` (value: `'not_required'`)
 
-* `Checking` (value: `'checking'`)
+* `PendingReview` (value: `'pending_review'`)
 
-* `NeedsRevision` (value: `'needs_revision'`)
+* `Accepted` (value: `'accepted'`)
 
-* `Passed` (value: `'passed'`)
+* `Rejected` (value: `'rejected'`)
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

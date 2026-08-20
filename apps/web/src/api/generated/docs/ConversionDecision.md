@@ -1,12 +1,10 @@
-# VisualReviewStatus
+# ConversionDecision
 
 
 ## Enum
 
-* `Pending` (value: `'pending'`)
+* `Accepted` (value: `'accepted'`)
 
-* `Passed` (value: `'passed'`)
-
-* `Failed` (value: `'failed'`)
+* `Rejected` (value: `'rejected'`)
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

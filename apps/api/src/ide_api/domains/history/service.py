@@ -10,6 +10,7 @@ from ide_api.domains.evidence.models import DocumentEvidenceLink
 from ide_api.domains.formatting.models import ExternalEditResult, FormatCheck
 from ide_api.domains.history.schemas import HistoryEvent
 from ide_api.domains.impacts.models import DocumentImpact, DocumentRelationship
+from ide_api.domains.latex.models import LatexConversionReview, LatexRevision
 
 
 def _safe_audit_data(data: dict) -> dict:
@@ -51,6 +52,7 @@ class HistoryService:
         events.extend(await self._approval_events(document_id))
         events.extend(await self._format_events(document_id))
         events.extend(await self._completion_events(document_id))
+        events.extend(await self._latex_events(document_id))
         if event_filter is not None:
             events = [event for event in events if event.type == event_filter]
         events.sort(key=lambda event: (event.occurred_at, str(event.id), event.type), reverse=True)
@@ -339,3 +341,50 @@ class HistoryService:
             )
             for completion in completions
         ]
+
+    async def _latex_events(self, document_id: UUID | None) -> list[HistoryEvent]:
+        revision_statement = select(LatexRevision)
+        if document_id is not None:
+            revision_statement = revision_statement.where(LatexRevision.document_id == document_id)
+        revisions = list((await self._session.execute(revision_statement)).scalars())
+        events = [
+            HistoryEvent(
+                id=revision.id,
+                type="latex_revision",
+                document_id=revision.document_id,
+                actor_id=revision.created_by_id,
+                occurred_at=revision.created_at,
+                reason=None,
+                before=None,
+                after={
+                    "origin": revision.origin,
+                    "conversion_status": revision.conversion_status,
+                    "compile_status": revision.compile_status,
+                    "source_sha256": revision.source_sha256,
+                    "compiled_pdf_sha256": revision.compiled_pdf_sha256,
+                },
+                source_id=revision.id,
+            )
+            for revision in revisions
+        ]
+        review_statement = select(LatexConversionReview, LatexRevision.document_id).join(
+            LatexRevision, LatexConversionReview.revision_id == LatexRevision.id
+        )
+        if document_id is not None:
+            review_statement = review_statement.where(LatexRevision.document_id == document_id)
+        review_rows = (await self._session.execute(review_statement)).all()
+        events.extend(
+            HistoryEvent(
+                id=review.id,
+                type="latex_conversion_review",
+                document_id=revision_document_id,
+                actor_id=review.decided_by_id,
+                occurred_at=review.decided_at,
+                reason=review.reason,
+                before={"conversion_status": "pending_review"},
+                after={"conversion_status": review.decision},
+                source_id=review.id,
+            )
+            for review, revision_document_id in review_rows
+        )
+        return events
