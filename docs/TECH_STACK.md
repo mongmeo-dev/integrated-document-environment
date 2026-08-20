@@ -1,21 +1,25 @@
 # Integrated Document Environment 기술 스택
 
 - 상태: Phase1 기술 스택 결정
-- 기준 문서: [`../PRD.md`](../PRD.md)
-- 작성일: 2026-08-15
+- 기준 문서: [`tasks/phase1_prd/PRD.md`](tasks/phase1_prd/PRD.md)
+- 작성일: 2026-08-19
 
 ## 1. 설계 방향
 
-Phase1은 FastAPI 기반 모듈러 모놀리스와 비동기 문서 처리 worker로 구현한다. API와 worker는 도메인 규칙을 공유하되 실행 process와 Docker image는 분리한다.
+Phase1은 FastAPI 기반 모듈러 모놀리스와 비동기 문서 처리 worker로 구현한다. API와 worker는 도메인 규칙을 공유하되 실행 process와 Docker image는 분리한다. PostgreSQL은 업무 데이터와 감사 이력의 기준 저장소이며, 원본과 산출 파일은 object storage에 저장한다.
 
-마이크로서비스, 범용 BPM engine, Elasticsearch와 graph database는 Phase1에 도입하지 않는다. PostgreSQL을 업무 데이터, 감사 이력, 검색과 문서 관계의 기준 저장소로 사용한다.
+문서의 정본은 진입점 `.tex`, 자산, 참고문헌, 스타일 파일로 이루어진 LaTeX 프로젝트 번들이다. Web에서 이 정본을 편집하고 PDF 미리보기를 검토한다. 컴파일 PDF는 정본으로부터 재현되는 파생 검토·승인 산출물이며 편집 원본이 아니다.
+
+DOCX는 불변의 import-only 입력이다. DOCX를 LaTeX 프로젝트로 자동 일방향 변환한 뒤 변환 차이를 사람의 사유 있는 명시적 검토로 해결한다. 자동 변환 또는 AI 판단만으로 변환을 수락하지 않는다. PDF는 보존·참조·분석 입력으로 지원하지만 주 편집 경로나 PDF→LaTeX 변환 경로는 제공하지 않는다. 외부 편집은 더 이상 주 경로가 아니다.
+
+마이크로서비스, 범용 BPM engine, Elasticsearch와 graph database는 Phase1에 도입하지 않는다.
 
 ## 2. 기술 스택
 
 | 영역 | 선정 기술 |
 |---|---|
-| Web | Next.js static export, React, TypeScript |
-| UI | Chakra UI |
+| Web | Next.js standalone server, React, TypeScript |
+| UI | CSS Modules |
 | Server state | TanStack Query |
 | API client 생성 | OpenAPI Generator의 `typescript-axios` |
 | API | Python 3.14, FastAPI, Pydantic |
@@ -28,9 +32,9 @@ Phase1은 FastAPI 기반 모듈러 모놀리스와 비동기 문서 처리 worke
 | 벡터 검색 | pgvector |
 | 파일 저장 | Naver Cloud Object Storage |
 | AI | OpenAI Responses API, Structured Outputs, Embeddings API |
-| DOCX 분석 | OOXML package 직접 분석, lxml, python-docx 보조 사용 |
-| DOCX rendering | version과 font를 고정한 LibreOffice headless |
-| PDF 처리 | PyMuPDF, pikepdf, qpdf |
+| DOCX→LaTeX 변환 | Pandoc 3.10.2 |
+| LaTeX 컴파일 | Tectonic 0.17.0 |
+| PDF 참조·분석 | PyMuPDF, pikepdf, qpdf |
 | 시각 비교 | OpenCV |
 | 스캔 PDF OCR | CLOVA OCR |
 | Python 의존성 관리 | Poetry |
@@ -39,7 +43,9 @@ Phase1은 FastAPI 기반 모듈러 모놀리스와 비동기 문서 처리 worke
 | Frontend lint 및 format | Biome |
 | 테스트 | pytest, Testcontainers, Playwright |
 
-OpenAI 호출에는 공식 Python SDK를 사용한다. LangChain이나 LlamaIndex 같은 범용 AI orchestration framework는 도입하지 않는다. 생성 모델과 embedding 모델의 정확한 ID는 실행 환경의 설정으로 관리하고, 각 생성 결과에 실제 모델 ID와 prompt version을 기록한다.
+OpenAI 호출에는 공식 Python SDK를 사용한다. LangChain이나 LlamaIndex 같은 범용 AI orchestration framework는 도입하지 않는다. 모델 ID와 prompt version은 실행 환경 설정으로 관리하고 생성 결과에 기록한다.
+
+Pandoc은 정확히 `3.10.2`로 고정하고 DOCX를 LaTeX 프로젝트로 가져오는 단방향 변환기에만 사용한다. 변환 결과의 정본성은 사람의 변환 충실도 검토·확정 뒤에만 성립한다. Tectonic은 정확히 `0.17.0`, 한글 font는 Noto Sans CJK `20240730`으로 고정한다. production image build에서 compiler resource cache를 준비하고 runtime에는 `--untrusted --only-cached`로 실행하여 네트워크 없이 동일 번들과 고정 도구 버전으로 동일 PDF를 재현한다.
 
 ## 3. 서버 구조
 
@@ -49,186 +55,84 @@ FastAPI application은 다음 의존 방향을 유지한다.
 router -> application service -> domain rule -> repository -> PostgreSQL
 ```
 
-라우터가 ORM 객체를 직접 변경하거나 승인 상태를 전이해서는 안 된다. 승인, 후보 처리, 오래됨 상태와 완료 gate는 application service와 domain rule에서 처리한다.
-
-승인 처리에는 PostgreSQL transaction과 row lock을 사용한다. 완료된 승인 단계와 감사 이력은 수정하지 않고 후속 event를 append한다. Redis는 queue와 일시적 cache에만 사용하며 승인 상태나 문서 상태의 source of truth로 사용하지 않는다.
+라우터가 ORM 객체를 직접 변경하거나 승인 상태를 전이해서는 안 된다. 승인, 후보 처리, 변환 검토, 컴파일 상태, 완료 gate는 application service와 domain rule에서 처리한다. 승인 처리에는 PostgreSQL transaction과 row lock을 사용한다. 완료된 승인 단계와 감사 이력은 수정하지 않고 후속 event를 append한다. Redis는 queue와 일시적 cache에만 사용하며 승인 상태나 문서 상태의 source of truth로 사용하지 않는다.
 
 ### 3.1 Web API client
 
-FastAPI가 생성하는 OpenAPI specification을 API 계약의 단일 기준으로 사용한다. Web의 request/response type과 Axios client는 OpenAPI Generator의 `typescript-axios` generator로 생성한다.
+FastAPI OpenAPI specification을 API 계약의 단일 기준으로 사용한다. Web의 request/response type과 Axios client는 OpenAPI Generator의 `typescript-axios` generator로 생성한다.
 
 ```text
-FastAPI schema
-  -> openapi.json
-  -> OpenAPI Generator (typescript-axios)
-  -> generated API client
-  -> React Query hooks
-  -> page/component
+FastAPI schema -> openapi.json -> OpenAPI Generator -> generated API client -> React Query hooks -> page/component
 ```
 
-Web page와 component는 codegen 산출물이나 Axios를 직접 호출해서는 안 된다. 모든 server state 접근은 codegen client를 감싼 React Query query 또는 mutation hook을 통해 수행한다.
+Web component는 codegen 산출물이나 Axios를 직접 호출하지 않는다. 모든 server state 접근은 codegen client를 감싼 React Query hook을 통해 수행한다. 생성 type과 API 함수는 직접 수정하지 않으며, wrapper에서 query key, cache policy, invalidation과 화면용 오류 변환을 관리한다.
 
-- 생성된 type과 API 함수는 수작업으로 수정하지 않는다.
-- React Query wrapper에서 query key, cache policy, invalidation과 화면용 오류 변환을 관리한다.
-- domain별 query key factory를 두어 같은 resource에 일관된 key를 사용한다.
-- component에는 API DTO를 그대로 확산하지 않고 필요한 경우 wrapper 경계에서 화면 model로 변환한다.
-- codegen 산출물은 수작업 source와 구분하여 Biome lint/format에서는 제외하고 TypeScript type check에는 포함한다.
-- CI에서는 OpenAPI specification으로 client를 다시 생성한 뒤 repository 상태가 달라지면 실패시켜 API와 Web 계약 불일치를 차단한다.
+## 4. 문서 처리와 보존
 
-## 4. 인증과 접근 통제
+원본 DOCX, 입력 PDF, LaTeX 프로젝트 번들, 컴파일 PDF, 변환·컴파일·검토 결과는 object storage의 별도 object로 보존한다. PostgreSQL에는 object key, SHA-256, 크기, MIME type, 등록 사용자, 등록 시각, 도구 버전과 문서 version 관계를 기록한다.
 
-서비스는 내부망에만 배포한다. Phase1에는 Keycloak이나 OIDC를 도입하지 않는다.
+- 입력 원본과 확정된 번들은 덮어쓰거나 변경하지 않는다.
+- LaTeX 프로젝트는 진입점 `.tex`와 참조하는 자산·참고문헌·스타일 파일을 하나의 versioned bundle로 취급한다.
+- DOCX 가져오기는 Pandoc으로 한 번만 수행하며 DOCX로 되돌려 쓰거나 PDF를 편집 원본으로 역변환하지 않는다.
+- DOCX 변환 revision 검토, 컴파일 오류·경고와 사용자 결정에는 사용자, 시각, 사유 및 관련 version을 영구 감사 이력으로 남긴다.
+- AI가 생성한 수정안·관계·영향·근거 후보는 사용자가 확정하기 전까지 advisory 상태다.
+- 문서별 승인 단계·담당자·순서는 구성 가능하며, DOCX 기반 최신 revision의 검토 대기·반려, 컴파일 문제와 미처리 후보는 완료와 산출을 차단한다.
 
-내부망 접근만으로는 승인 사용자와 변경자를 식별할 수 없으므로 application 자체 계정과 session 인증을 사용한다.
+### 4.1 DOCX 변환 충실도 검토
 
-- 관리자가 사내 사용자 계정을 생성하며 self-signup은 제공하지 않는다.
-- 비밀번호는 Argon2id로 hashing한다.
-- 인증에는 HttpOnly, Secure, SameSite cookie와 server-side opaque session을 사용한다.
-- session의 기준 데이터와 사용자 상태는 PostgreSQL에 저장한다.
-- 승인과 흐름 변경 시 인증된 사용자 ID를 감사 이력에 기록한다.
-- 문서 단계 승인은 현재 단계의 지정 담당자에게만 허용한다.
+Pandoc 변환 직후 원본 DOCX 다운로드, 생성 LaTeX 번들과 같은 revision의 컴파일 PDF를 한 화면의 변환 충실도 검토 자료로 제시한다. 검토자는 원본과 생성 결과를 대조한 뒤 해당 revision 전체를 수락 또는 반려하고 구체적인 사유를 기록한다. 수정이 필요하면 Web 정본 편집으로 새 revision을 생성하며 DOCX 기반 새 revision은 다시 검토 대기가 된다. 최신 revision이 검토 대기·반려이거나 사유 없는 결정이면 완료와 승인 PDF 산출의 조건을 충족하지 못한다.
 
-추후 외부 identity 연동이 필수가 되면 NCP의 OIDC 사용 여부를 별도로 결정한다. Phase1에는 범용 identity provider abstraction이나 OIDC 의존성을 미리 추가하지 않는다.
+이는 DOCX binary의 절대 동일성을 보장하는 요구가 아니다. 기준은 LaTeX 정본의 재현 가능성, 컴파일 PDF의 검토 가능성, 그리고 DOCX→LaTeX 변환 충실도에 대한 인간 검토다.
 
-## 5. 파일 저장과 무결성
+### 4.2 LaTeX 편집과 컴파일
 
-DOCX, PDF, 이미지와 기타 근거 파일의 binary는 PostgreSQL이 아닌 Naver Cloud Object Storage에 저장한다. PostgreSQL에는 object key, SHA-256, 크기, MIME type, 등록 사용자, 등록 시각과 문서 version 관계를 기록한다.
+Web은 LaTeX 소스 편집기와 같은 번들의 PDF 미리보기를 기본 작업 화면에 함께 제공한다. 편집 저장은 새 정본 version을 만들고 Tectonic worker가 해당 번들을 컴파일한다. PDF 미리보기에는 컴파일 대상 version, Tectonic `0.17.0`, 실행 결과, 오류·경고와 생성 시각을 표시한다.
 
-- 원본 object는 덮어쓰거나 변경하지 않는다.
-- 외부 편집 결과와 승인 산출물은 매번 별도 object로 생성한다.
-- 등록 시 계산한 SHA-256으로 이후 무결성을 검증한다.
-- Redis에는 원본 문서나 승인 산출물을 저장하지 않는다.
+Tectonic worker는 다음 제약을 적용한다.
 
-## 6. 문서 검사
+- non-root user, read-only root filesystem, 작업별 임시 directory
+- CPU, memory, 저장 공간 및 실행 시간 제한
+- 기본 outbound network 차단과 허용된 번들 파일만 mount
+- shell escape 및 임의 host 파일 접근 금지
+- 컴파일러 image, Tectonic version, font·패키지 입력의 version 고정
+- 실패 log와 source version을 보존하고 PDF를 승인 산출로 승격하지 않음
 
-### 6.1 DOCX
+## 5. PDF 참조·분석
 
-DOCX 서식 검사는 OOXML 구조 검사와 시각 비교를 모두 수행한다.
+PDF는 텍스트 PDF와 스캔 PDF 모두 원본을 보존하고 텍스트 추출, OCR, 관계·영향·근거 분석의 입력으로 받을 수 있다. PDF는 LaTeX 정본을 대신하거나 in-web 편집·왕복 변환 대상이 아니다. PDF 분석 결과도 후보이며 사람의 검토·확정이 필요하다.
 
-- style, run property, font, 크기와 색상
-- paragraph 간격과 line spacing
-- table, cell, section과 margin
-- header, footer, image와 relationship
-- 고정된 LibreOffice 및 font 환경에서 생성한 page rendering
+## 6. AI 처리
 
-LibreOffice rendering만으로 서식 동일성을 판정하지 않는다. OOXML 구조 검사만으로도 완료 처리하지 않는다.
+OpenAI는 수정안, 문서 관계, 변경 영향과 제품·검증 근거의 후보만 생성한다. 승인, 변환 차이 수락, 컴파일 성공 판정, 완료 gate와 권한 판정에는 AI 출력을 직접 사용하지 않는다. AI worker는 Structured Outputs와 Pydantic schema를 사용하며 입력 문서·version, 근거 위치, 모델 ID, prompt version, 생성 시각 및 사용자 결정을 기록한다.
 
-### 6.2 PDF
+## 7. 인증과 접근 통제
 
-PDF는 객체 수준 검사와 동일 rendering engine으로 생성한 page image 비교를 모두 수행한다.
-
-- page 크기와 회전
-- font와 색상
-- text 및 image object
-- annotation과 embedded resource
-- page별 image difference
-
-자동 검사 결과와 별도로 사용자의 시각 비교 완료 기록이 있어야 한다. 미해결 차이가 있으면 단계 승인, 최종 완료와 승인 산출을 차단한다.
-
-### 6.3 실행 격리
-
-업로드된 문서는 신뢰할 수 없는 입력으로 취급한다. 문서 처리 container에는 다음 제한을 적용한다.
-
-- non-root user
-- read-only root filesystem
-- 임시 저장 공간 제한
-- CPU, memory와 실행 시간 제한
-- 기본 outbound network 차단
-- 압축 해제 크기 및 ZIP bomb 검사
-- 암호화 또는 손상 파일의 사전 거부
-
-## 7. AI 처리
-
-OpenAI는 수정안, 문서 관계, 변경 영향과 제품·검증 근거의 후보만 생성한다. 승인, 오래됨 상태, 완료 gate와 권한 판정에는 AI 출력을 직접 사용하지 않는다.
-
-AI worker는 자유 형식 응답 대신 Structured Outputs와 Pydantic schema를 사용한다. 후보에는 최소한 다음 정보를 저장한다.
-
-- 입력 문서와 version
-- 관련 문서 및 위치
-- 후보 내용과 제안 이유
-- 원문 근거 위치
-- OpenAI model ID
-- prompt version
-- 생성 시각
-- 사용자 확정 또는 거절 결과
-- 요청 ID, token 사용량과 오류 기록
-
-GMP 문서의 전체 내용을 불필요하게 전송하지 않고 처리에 필요한 chunk 또는 page만 전송한다. API request 본문, 문서 원문과 model 응답 원문은 일반 application log에 기록하지 않는다. OpenAI API key는 AI worker에만 제공한다.
+서비스는 내부망에만 배포한다. 관리자가 사내 사용자 계정을 생성하며 self-signup은 제공하지 않는다. 비밀번호는 Argon2id로 hashing하고 인증에는 HttpOnly, Secure, SameSite cookie와 server-side opaque session을 사용한다. 승인, 변환 검토와 흐름 변경 시 인증된 사용자 ID를 감사 이력에 기록한다.
 
 ## 8. Dockerizing
 
-Web은 Next.js static export로 생성한 `out/` 디렉터리를 Naver Cloud Object Storage에 업로드하고 CDN으로 제공할 수 있어야 한다. Web에는 Next.js server runtime을 요구하는 기능을 사용하지 않는다. `NEXT_PUBLIC_API_BASE_URL`은 static export build 시점에 주입하며 환경별 산출물을 별도로 생성한다.
-
-배포 platform과 배포 도구는 이 문서에서 고정하지 않는다. 다음 Docker image를 제공한다.
+Web은 Next.js `standalone` output으로 실행한다. 정적 export를 요구하는 기능은 사용하지 않으며 Docker image는 생성된 `server.js`를 실행한다. 다음 image를 제공한다.
 
 ```text
-web-static
+web
 api
 worker-document
+worker-latex
 worker-ai
 worker-ocr
 ```
 
-각 image는 다음 원칙을 따른다.
-
-- version이 고정된 dependency와 reproducible build
-- multi-stage build
-- non-root runtime user
-- application source와 runtime dependency만 포함
-- health check endpoint 제공
-- 설정과 secret은 image에 포함하지 않고 환경 변수 또는 mounted secret으로 주입
-- 동일 source revision으로 생성된 image에 동일 release identifier 부여
+각 image는 version이 고정된 dependency와 reproducible build, multi-stage build, non-root runtime user, 최소 runtime dependency, health check, 환경 변수 또는 mounted secret 주입을 따른다. 설정과 secret은 image에 포함하지 않는다.
 
 ## 9. 개발 품질 기준
 
-Python 의존성은 Poetry의 `pyproject.toml`과 lock file로 관리한다. 운영 image는 lock file에 고정된 의존성만 설치한다.
-
-Ruff를 Python lint와 formatter의 단일 도구로 사용한다.
-
-```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run pytest
-```
-
-자동 수정은 개발 과정에서 다음 명령으로 수행한다.
-
-```bash
-poetry run ruff check --fix .
-poetry run ruff format .
-```
-
-Frontend의 lint와 format에는 Biome만 사용한다.
-
-```bash
-pnpm exec biome check .
-pnpm exec biome format --write .
-```
-
-Web 의존성은 pnpm의 `package.json`과 `pnpm-lock.yaml`로 관리한다. 개발, CI와 Docker build에서 같은 pnpm version을 사용하며 운영 image는 `pnpm install --frozen-lockfile`로 고정된 의존성만 설치한다.
-
-Biome는 TypeScript type checker가 아니므로 type check는 TypeScript compiler로 수행한다. Frontend는 Biome 검사, type check와 test를 모두 통과해야 한다.
-
-API 계약 검증에는 다음 과정이 포함되어야 한다.
-
-```text
-OpenAPI schema 생성
--> typescript-axios client 재생성
--> 변경 여부 검사
--> TypeScript type check
--> React Query wrapper test
-```
-
-API 계약과 client type을 frontend에서 수작업으로 중복 정의하지 않는다.
+Python 의존성은 Poetry lock file, Web 의존성은 pnpm lock file로 고정한다. CI에서는 OpenAPI specification으로 client를 재생성해 차이가 있으면 실패시킨다. Tectonic compiler image와 Pandoc version도 release metadata와 함께 고정하여 문서 번들과 컴파일 결과를 재현 가능하게 한다.
 
 ## 10. Phase1에서 도입하지 않는 항목
 
-- Django
-- Keycloak
-- 필수 OIDC 연동
-- LangChain 또는 LlamaIndex
-- Elasticsearch
-- Neo4j 또는 별도 graph database
-- Temporal 또는 범용 BPM engine
-- 배포 platform 및 배포 도구의 신규 선정
-- IDE 내부 DOCX/PDF 편집기
+- IDE 내부 DOCX 또는 PDF 직접 편집기
+- DOCX round-trip 또는 PDF→LaTeX 변환
+- DOCX binary-format의 절대 동일성 보장
+- 외부 편집 결과 재수집을 주 문서 편집 경로로 사용하는 방식
+- AI 또는 시스템에 의한 변환 차이·승인의 무인 자동 확정
+- Keycloak, 필수 OIDC 연동, LangChain, LlamaIndex, Elasticsearch, Neo4j, Temporal

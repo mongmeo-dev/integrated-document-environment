@@ -34,8 +34,9 @@
 
 ### Typography
 
-- **Heading Font:** JetBrains Mono
+- **Heading Font:** IBM Plex Sans
 - **Body Font:** IBM Plex Sans
+- **Machine Metadata Font:** JetBrains Mono — document IDs, hashes, versions, and code only
 - **Mood:** technical, precise, calm, trustworthy, document-first
 - **Google Fonts:** [JetBrains Mono + IBM Plex Sans](https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap)
 
@@ -163,19 +164,24 @@
 
 **Style:** Technical Document Workbench
 
-**Keywords:** Structured workspace, document-first, calm technical, split review, persistent context, high information clarity
+**Keywords:** LaTeX-first workspace, source-and-preview editing, conversion review, calm technical, persistent context, high information clarity
 
-**Best For:** Developer documentation, regulated document review, change-impact analysis, evidence verification
+**Best For:** LaTeX source authoring, compiled PDF review, DOCX conversion-fidelity review, regulated document approval
 
-**Key Effects:** Stable pane boundaries, restrained elevation, semantic state colors, compact keyboard-friendly controls
+**Key Effects:** Stable source/preview boundaries, visible version linkage, semantic gate states, compact keyboard-friendly controls
 
 ### Page Pattern
 
-**Pattern Name:** Three-Pane Document Workbench
+**Pattern Name:** LaTeX Source, PDF Preview, and Review Context Workbench
 
-- **Primary Workflow:** Navigate project documents, compare original and proposed content, resolve impact and evidence candidates.
-- **Primary Action Placement:** Document header beside the active change request.
-- **Pane Order:** 1. Project and document navigation, 2. Tabbed document comparison, 3. Change context and approval gates.
+- **Primary Workflow:** Open a document's LaTeX project bundle, edit the source, compile it, inspect the matching PDF preview, then resolve conversion differences, impact, evidence and approval gates.
+- **Primary Action Placement:** Document header beside the active source version and compile status.
+- **Pane Order:** 1. Project bundle and document navigation, 2. LaTeX source editor with compiled PDF preview, 3. Version-scoped conversion, change, evidence and approval context.
+- **Version Rule:** Every preview, review decision and approval state must identify its LaTeX bundle version. Never present a PDF as independently editable or detached from its source.
+- **DOCX Import Rule:** Show DOCX as immutable import evidence and surface each DOCX→LaTeX conversion difference with its required human decision and reason. Conversion is never visually represented as automatically accepted.
+- **Gate Rule:** Use persistent, explicit blocker states for unresolved conversion differences, compile failures, incomplete PDF review and unprocessed advisory candidates. AI/system candidates remain visually distinct from human-confirmed decisions.
+- **Global Navigation:** My work, documents, and global audit history only. Conversion review, source editing, preview, impact, evidence, approval, and completion remain within the selected document context.
+- **Responsive Rule:** Collapse the right context pane into a drawer below 1024px and use a single-task drill-down flow below 768px. Never compress all three panes into a mobile viewport.
 
 ---
 
