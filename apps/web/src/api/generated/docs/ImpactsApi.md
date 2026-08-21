@@ -8,6 +8,7 @@ All URIs are relative to *http://localhost*
 |[**confirmRelationshipCandidate**](#confirmrelationshipcandidate) | **PATCH** /api/v1/impacts/relationships/{relationship_id}/confirm | Confirm Relationship Candidate|
 |[**createImpactCandidate**](#createimpactcandidate) | **POST** /api/v1/impacts/candidates | Create Impact Candidate|
 |[**createRelationshipCandidate**](#createrelationshipcandidate) | **POST** /api/v1/impacts/relationships | Create Relationship Candidate|
+|[**getLatestDocumentRelationshipAnalysis**](#getlatestdocumentrelationshipanalysis) | **GET** /api/v1/impacts/documents/{document_id}/analysis | Get Latest Relationship Analysis|
 |[**listDocumentImpactCandidates**](#listdocumentimpactcandidates) | **GET** /api/v1/impacts/documents/{document_id} | List Document Candidates|
 |[**markImpactModificationNotRequired**](#markimpactmodificationnotrequired) | **PATCH** /api/v1/impacts/candidates/{impact_id}/modification-not-required | Mark Impact Modification Not Required|
 |[**markImpactModificationRequired**](#markimpactmodificationrequired) | **PATCH** /api/v1/impacts/candidates/{impact_id}/modification-required | Mark Impact Modification Required|
@@ -236,6 +237,62 @@ No authorization required
 |-------------|-------------|------------------|
 |**201** | Successful Response |  -  |
 |**401** | Unauthorized |  -  |
+|**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getLatestDocumentRelationshipAnalysis**
+> RelationshipAnalysisRunResponse getLatestDocumentRelationshipAnalysis()
+
+
+### Example
+
+```typescript
+import {
+    ImpactsApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new ImpactsApi(configuration);
+
+let documentId: string; // (default to undefined)
+let ideSession: string; // (optional) (default to undefined)
+
+const { status, data } = await apiInstance.getLatestDocumentRelationshipAnalysis(
+    documentId,
+    ideSession
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **documentId** | [**string**] |  | defaults to undefined|
+| **ideSession** | [**string**] |  | (optional) defaults to undefined|
+
+
+### Return type
+
+**RelationshipAnalysisRunResponse**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | Successful Response |  -  |
+|**401** | Unauthorized |  -  |
+|**404** | Not Found |  -  |
 |**422** | Validation Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

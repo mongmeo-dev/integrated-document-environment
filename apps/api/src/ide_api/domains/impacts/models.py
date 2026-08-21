@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, Uuid
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ide_api.core.database import Base
@@ -36,6 +36,12 @@ class DocumentRelationship(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     decided_by_id: Mapped[UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    analysis_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("relationship_analysis_runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     source_document: Mapped[Document] = relationship(foreign_keys=[source_document_id])
@@ -79,3 +85,33 @@ class DocumentImpact(Base):
     modification_decided_by: Mapped[User | None] = relationship(
         foreign_keys=[modification_decided_by_id]
     )
+
+
+class RelationshipAnalysisRun(Base):
+    __tablename__ = "relationship_analysis_runs"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_document_version_id",
+            "prompt_version",
+            name="uq_relationship_analysis_run_version_prompt",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    source_document_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source_document_version_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    model_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utc_now, nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -16,6 +16,7 @@ Name | Type | Description | Notes
 **decided_at** | **string** |  | [default to undefined]
 **reviewed_by_id** | **string** |  | [default to undefined]
 **reviewed_at** | **string** |  | [default to undefined]
+**analysis_run_id** | **string** |  | [default to undefined]
 
 ## Example
 
@@ -34,6 +35,7 @@ const instance: DocumentEvidenceLinkResponse = {
     decided_at,
     reviewed_by_id,
     reviewed_at,
+    analysis_run_id,
 };
 ```
 

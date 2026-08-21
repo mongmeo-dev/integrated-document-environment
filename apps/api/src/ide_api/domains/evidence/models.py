@@ -64,6 +64,12 @@ class DocumentEvidenceLink(Base):
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    analysis_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("relationship_analysis_runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     document: Mapped[Document] = relationship()
     evidence: Mapped[EvidenceItem] = relationship()

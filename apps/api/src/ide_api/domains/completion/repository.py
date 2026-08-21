@@ -9,7 +9,11 @@ from ide_api.domains.changes.models import ChangeProposal, ChangeRequest
 from ide_api.domains.completion.models import DocumentCompletion
 from ide_api.domains.documents.models import Document
 from ide_api.domains.evidence.models import DocumentEvidenceLink
-from ide_api.domains.impacts.models import DocumentImpact, DocumentRelationship
+from ide_api.domains.impacts.models import (
+    DocumentImpact,
+    DocumentRelationship,
+    RelationshipAnalysisRun,
+)
 from ide_api.domains.latex.models import LatexRevision
 
 
@@ -18,6 +22,7 @@ class CompletionGateCounts:
     pending_change_requests: int
     pending_change_proposals: int
     pending_relationship_candidates: int
+    pending_relationship_analyses: int
     pending_impact_candidates: int
     pending_evidence_candidates: int
     stale_evidence: int
@@ -83,6 +88,22 @@ class CompletionRepository:
                 DocumentRelationship.status.not_in(("confirmed", "rejected")),
             )
         )
+        latest_relationship_analysis_id = (
+            select(RelationshipAnalysisRun.id)
+            .where(RelationshipAnalysisRun.source_document_id == document_id)
+            .order_by(
+                RelationshipAnalysisRun.created_at.desc(),
+                RelationshipAnalysisRun.id.desc(),
+            )
+            .limit(1)
+            .scalar_subquery()
+        )
+        pending_relationship_analyses = await self._count(
+            select(RelationshipAnalysisRun).where(
+                RelationshipAnalysisRun.id == latest_relationship_analysis_id,
+                RelationshipAnalysisRun.status != "completed",
+            )
+        )
         pending_impact_candidates = await self._count(
             select(DocumentImpact).where(
                 or_(
@@ -127,6 +148,7 @@ class CompletionRepository:
             pending_change_requests=pending_change_requests,
             pending_change_proposals=pending_change_proposals,
             pending_relationship_candidates=pending_relationship_candidates,
+            pending_relationship_analyses=pending_relationship_analyses,
             pending_impact_candidates=pending_impact_candidates,
             pending_evidence_candidates=pending_evidence_candidates,
             stale_evidence=stale_evidence,

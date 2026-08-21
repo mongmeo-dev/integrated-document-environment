@@ -54,3 +54,26 @@ class DocumentRepository:
 
         result = await self._session.execute(statement)
         return list(result.unique().scalars())
+
+    async def list_ready_for_relationship_analysis(
+        self, *, exclude_document_id: UUID
+    ) -> list[Document]:
+        latest_version_id = (
+            select(DocumentVersion.id)
+            .where(DocumentVersion.document_id == Document.id)
+            .order_by(DocumentVersion.created_at.desc(), DocumentVersion.id.desc())
+            .limit(1)
+            .correlate(Document)
+            .scalar_subquery()
+        )
+        result = await self._session.execute(
+            select(Document)
+            .join(DocumentVersion, DocumentVersion.id == latest_version_id)
+            .options(contains_eager(Document.versions))
+            .where(
+                Document.id != exclude_document_id,
+                DocumentVersion.status == DocumentStatus.READY.value,
+            )
+            .order_by(DocumentVersion.created_at.desc())
+        )
+        return list(result.unique().scalars())

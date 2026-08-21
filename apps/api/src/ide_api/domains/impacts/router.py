@@ -10,6 +10,7 @@ from ide_api.domains.impacts.schemas import (
     DocumentImpactCandidateResponse,
     DocumentRelationshipCandidateCreate,
     DocumentRelationshipCandidateResponse,
+    RelationshipAnalysisRunResponse,
 )
 from ide_api.domains.impacts.service import (
     DocumentImpactNotFoundError,
@@ -17,6 +18,7 @@ from ide_api.domains.impacts.service import (
     ImpactService,
     InvalidCandidateTransitionError,
     InvalidModificationDecisionError,
+    RelationshipAnalysisRunNotFoundError,
 )
 
 router = APIRouter(prefix="/impacts", tags=["impacts"])
@@ -64,6 +66,24 @@ async def list_document_candidates(
     _: CurrentUser,
 ) -> DocumentCandidatesResponse:
     return await ImpactService(db_session).list_document_candidates(document_id=document_id)
+
+
+@router.get(
+    "/documents/{document_id}/analysis",
+    operation_id="getLatestDocumentRelationshipAnalysis",
+    response_model=RelationshipAnalysisRunResponse,
+    responses={401: {"model": ApiError}, 404: {"model": ApiError}},
+)
+async def get_latest_relationship_analysis(
+    document_id: UUID,
+    db_session: DbSession,
+    _: CurrentUser,
+) -> RelationshipAnalysisRunResponse:
+    try:
+        run = await ImpactService(db_session).get_latest_analysis_run(document_id=document_id)
+    except RelationshipAnalysisRunNotFoundError:
+        raise _not_found_error("relationship_analysis") from None
+    return RelationshipAnalysisRunResponse.model_validate(run)
 
 
 @router.post(

@@ -134,6 +134,19 @@ class DocumentService:
             raise DocumentNotFoundError
         return self.to_response(document)
 
+    async def list_relationship_analysis_sources(
+        self, *, exclude_document_id: UUID
+    ) -> list[Document]:
+        return await self._repository.list_ready_for_relationship_analysis(
+            exclude_document_id=exclude_document_id
+        )
+
+    async def get_relationship_analysis_source(self, *, document_id: UUID) -> Document:
+        document = await self._repository.get_by_id(document_id)
+        if document is None or not document.versions:
+            raise DocumentNotFoundError
+        return document
+
     async def get_original(self, document_id: UUID) -> tuple[BinaryIO, str, str, ExitStack]:
         document = await self._repository.get_by_id(document_id)
         if document is None or not document.versions:

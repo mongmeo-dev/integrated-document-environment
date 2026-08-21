@@ -16,6 +16,7 @@ Name | Type | Description | Notes
 **created_at** | **string** |  | [default to undefined]
 **decided_at** | **string** |  | [default to undefined]
 **decided_by_id** | **string** |  | [default to undefined]
+**analysis_run_id** | **string** |  | [default to undefined]
 
 ## Example
 
@@ -34,6 +35,7 @@ const instance: DocumentRelationshipCandidateResponse = {
     created_at,
     decided_at,
     decided_by_id,
+    analysis_run_id,
 };
 ```
 

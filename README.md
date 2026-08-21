@@ -81,6 +81,9 @@ pnpm --dir apps/web install --frozen-lockfile
 
 ```dotenv
 OPENAI_API_KEY=
+IDE_OPENAI_RELATIONSHIP_MODEL_STANDARD=gpt-5.6-luna
+IDE_OPENAI_RELATIONSHIP_MODEL_COMPLEX=gpt-5.6-terra
+IDE_REDIS_URL=redis://localhost:6379/0
 IDE_CORS_ORIGINS=["http://localhost:3000"]
 IDE_TECTONIC_ONLY_CACHED=false
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
@@ -110,7 +113,12 @@ docker compose ps
 
 ## 로컬 실행
 
-Web과 API 개발 서버를 함께 실행합니다.
+Web, API와 문서 관계 분석 worker를 함께 실행합니다. `OPENAI_API_KEY`가 설정된 경우
+검증이 끝난 등록 문서는 worker에 전달되고, 입력량과 비교 대상 수에 따라 Luna 또는
+Terra 모델로 라우팅됩니다. 생성한 문서 관계 및 앱·웹·서버 코드·DB·클라우드 설정·테스트
+근거 연결은 모두 사용자가 확정해야 하는 후보로 저장됩니다.
+키가 없거나 broker 전송이 일시적으로 실패하면 분석은 DB에 `queued`로 남고 완료 gate를
+차단합니다. 키와 broker가 복구되면 Celery beat가 대기 분석을 다시 전달합니다.
 
 ```bash
 mise run dev
@@ -121,7 +129,12 @@ mise run dev
 ```bash
 mise run dev:web
 mise run dev:api
+mise run dev:worker
 ```
+
+worker는 Celery beat를 함께 실행해 broker 일시 장애 중 DB에 `queued`로 남은 분석도 다시
+전달합니다. 운영에서 worker와 beat를 분리할 때도 동일한 Celery app
+`ide_api.cmd.worker:app`을 사용합니다.
 
 기본 주소는 다음과 같습니다.
 

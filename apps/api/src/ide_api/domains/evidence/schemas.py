@@ -78,3 +78,4 @@ class DocumentEvidenceLinkResponse(BaseModel):
     decided_at: datetime | None
     reviewed_by_id: UUID | None
     reviewed_at: datetime | None
+    analysis_run_id: UUID | None

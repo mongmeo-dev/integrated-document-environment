@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,6 +24,11 @@ class Settings(BaseSettings):
     object_storage_access_key: str = ""
     object_storage_secret_key: str = ""
     max_upload_size_bytes: int = 250 * 1024 * 1024
+    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    openai_relationship_model_standard: str = "gpt-5.6-luna"
+    openai_relationship_model_complex: str = "gpt-5.6-terra"
+    openai_relationship_prompt_version: str = "relationship-analysis-v1"
+    redis_url: str = "redis://localhost:6379/0"
 
 
 @lru_cache

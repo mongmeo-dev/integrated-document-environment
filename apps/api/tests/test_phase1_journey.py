@@ -57,6 +57,19 @@ async def _seed_users() -> tuple[str, str]:
         return str(author.id), str(approver.id)
 
 
+async def _complete_relationship_analysis(document_id: str) -> None:
+    async with async_session() as session:
+        await session.execute(
+            text(
+                "UPDATE relationship_analysis_runs "
+                "SET status = 'completed', model_id = 'test-model', completed_at = now() "
+                "WHERE source_document_id = :document_id"
+            ),
+            {"document_id": document_id},
+        )
+        await session.commit()
+
+
 @pytest.fixture
 def phase1_client(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
@@ -122,6 +135,10 @@ def test_phase1_internal_docx_journey_over_http(
     validated = client.post(f"/api/v1/documents/{document_id}/validate")
     assert validated.status_code == 200
     assert validated.json()["status"] == "ready"
+    analysis = client.get(f"/api/v1/impacts/documents/{document_id}/analysis")
+    assert analysis.status_code == 200
+    assert analysis.json()["status"] == "queued"
+    asyncio.run(_complete_relationship_analysis(document_id))
     project = client.get(f"/api/v1/documents/{document_id}/latex")
     assert project.status_code == 200
     revision_id = project.json()["revision_id"]

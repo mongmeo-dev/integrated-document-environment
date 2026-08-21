@@ -29,6 +29,8 @@
 
 * `PendingRelationshipCandidates` (value: `'pending_relationship_candidates'`)
 
+* `PendingRelationshipAnalyses` (value: `'pending_relationship_analyses'`)
+
 * `PendingImpactCandidates` (value: `'pending_impact_candidates'`)
 
 * `PendingEvidenceCandidates` (value: `'pending_evidence_candidates'`)

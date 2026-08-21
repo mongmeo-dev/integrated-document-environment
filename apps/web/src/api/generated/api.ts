@@ -221,6 +221,7 @@ export const CompletionBlockingCode = {
     PendingChangeRequests: 'pending_change_requests',
     PendingChangeProposals: 'pending_change_proposals',
     PendingRelationshipCandidates: 'pending_relationship_candidates',
+    PendingRelationshipAnalyses: 'pending_relationship_analyses',
     PendingImpactCandidates: 'pending_impact_candidates',
     PendingEvidenceCandidates: 'pending_evidence_candidates',
     StaleEvidence: 'stale_evidence',
@@ -315,6 +316,7 @@ export interface DocumentEvidenceLinkResponse {
     'decided_at': string | null;
     'reviewed_by_id': string | null;
     'reviewed_at': string | null;
+    'analysis_run_id': string | null;
 }
 
 
@@ -370,6 +372,7 @@ export interface DocumentRelationshipCandidateResponse {
     'created_at': string;
     'decided_at': string | null;
     'decided_by_id': string | null;
+    'analysis_run_id': string | null;
 }
 
 
@@ -529,6 +532,30 @@ export interface OriginalFileResponse {
     'size_bytes': number;
     'sha256': string;
 }
+export interface RelationshipAnalysisRunResponse {
+    'id': string;
+    'source_document_id': string;
+    'source_document_version_id': string;
+    'status': RelationshipAnalysisStatus;
+    'model_id': string | null;
+    'prompt_version': string;
+    'error_message': string | null;
+    'created_at': string;
+    'completed_at': string | null;
+}
+
+
+
+export const RelationshipAnalysisStatus = {
+    Queued: 'queued',
+    Running: 'running',
+    Completed: 'completed',
+    Failed: 'failed',
+} as const;
+
+export type RelationshipAnalysisStatus = typeof RelationshipAnalysisStatus[keyof typeof RelationshipAnalysisStatus];
+
+
 
 export const RelationshipType = {
     Hierarchy: 'hierarchy',
@@ -4754,6 +4781,41 @@ export const ImpactsApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          *
+         * @summary Get Latest Relationship Analysis
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatestDocumentRelationshipAnalysis: async (documentId: string, ideSession?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'documentId' is not null or undefined
+            assertParamExists('getLatestDocumentRelationshipAnalysis', 'documentId', documentId)
+            const localVarPath = `/api/v1/impacts/documents/{document_id}/analysis`
+                .replace('{document_id}', encodeURIComponent(String(documentId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         *
          * @summary List Document Candidates
          * @param {string} documentId
          * @param {string | null} [ideSession]
@@ -4994,6 +5056,20 @@ export const ImpactsApiFp = function(configuration?: Configuration) {
         },
         /**
          *
+         * @summary Get Latest Relationship Analysis
+         * @param {string} documentId
+         * @param {string | null} [ideSession]
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getLatestDocumentRelationshipAnalysis(documentId: string, ideSession?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<RelationshipAnalysisRunResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getLatestDocumentRelationshipAnalysis(documentId, ideSession, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ImpactsApi.getLatestDocumentRelationshipAnalysis']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         *
          * @summary List Document Candidates
          * @param {string} documentId
          * @param {string | null} [ideSession]
@@ -5113,6 +5189,16 @@ export const ImpactsApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          *
+         * @summary Get Latest Relationship Analysis
+         * @param {ImpactsApiGetLatestDocumentRelationshipAnalysisRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatestDocumentRelationshipAnalysis(requestParameters: ImpactsApiGetLatestDocumentRelationshipAnalysisRequest, options?: RawAxiosRequestConfig): AxiosPromise<RelationshipAnalysisRunResponse> {
+            return localVarFp.getLatestDocumentRelationshipAnalysis(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(axios, basePath));
+        },
+        /**
+         *
          * @summary List Document Candidates
          * @param {ImpactsApiListDocumentImpactCandidatesRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
@@ -5206,6 +5292,15 @@ export interface ImpactsApiInterface {
 
     /**
      *
+     * @summary Get Latest Relationship Analysis
+     * @param {ImpactsApiGetLatestDocumentRelationshipAnalysisRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getLatestDocumentRelationshipAnalysis(requestParameters: ImpactsApiGetLatestDocumentRelationshipAnalysisRequest, options?: RawAxiosRequestConfig): AxiosPromise<RelationshipAnalysisRunResponse>;
+
+    /**
+     *
      * @summary List Document Candidates
      * @param {ImpactsApiListDocumentImpactCandidatesRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
@@ -5283,6 +5378,15 @@ export interface ImpactsApiCreateImpactCandidateRequest {
  */
 export interface ImpactsApiCreateRelationshipCandidateRequest {
     readonly documentRelationshipCandidateCreate: DocumentRelationshipCandidateCreate
+
+    readonly ideSession?: string | null
+}
+
+/**
+ * Request parameters for getLatestDocumentRelationshipAnalysis operation in ImpactsApi.
+ */
+export interface ImpactsApiGetLatestDocumentRelationshipAnalysisRequest {
+    readonly documentId: string
 
     readonly ideSession?: string | null
 }
@@ -5378,6 +5482,17 @@ export class ImpactsApi extends BaseAPI implements ImpactsApiInterface {
      */
     public createRelationshipCandidate(requestParameters: ImpactsApiCreateRelationshipCandidateRequest, options?: RawAxiosRequestConfig) {
         return ImpactsApiFp(this.configuration).createRelationshipCandidate(requestParameters.documentRelationshipCandidateCreate, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     *
+     * @summary Get Latest Relationship Analysis
+     * @param {ImpactsApiGetLatestDocumentRelationshipAnalysisRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getLatestDocumentRelationshipAnalysis(requestParameters: ImpactsApiGetLatestDocumentRelationshipAnalysisRequest, options?: RawAxiosRequestConfig) {
+        return ImpactsApiFp(this.configuration).getLatestDocumentRelationshipAnalysis(requestParameters.documentId, requestParameters.ideSession, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

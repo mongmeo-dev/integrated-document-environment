@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Iterator
 from typing import Annotated
 from urllib.parse import quote
@@ -8,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from starlette.background import BackgroundTask
 
 from ide_api.api.dependencies import CurrentUser, DbSession
+from ide_api.config import get_settings
 from ide_api.domains.auth.schemas import ApiError
 from ide_api.domains.documents.schemas import DocumentResponse, DocumentStatus
 from ide_api.domains.documents.service import (
@@ -17,6 +19,8 @@ from ide_api.domains.documents.service import (
     DocumentStorageError,
     DocumentUploadError,
 )
+from ide_api.domains.impacts.analysis import RelationshipAnalysisService
+from ide_api.domains.impacts.tasks import enqueue_relationship_analysis
 from ide_api.domains.latex.service import (
     LatexPersistenceError,
     LatexProcessingError,
@@ -27,6 +31,7 @@ from ide_api.domains.latex.service import (
 from ide_api.infrastructure.object_storage import ObjectStorage
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 
 def get_object_storage() -> ObjectStorage:
@@ -266,5 +271,22 @@ async def validate_document(
                     message="LaTeX project initialization is temporarily unavailable.",
                 ).model_dump(),
             ) from None
+
+    if document.versions[0].input_kind is not None:
+        await RelationshipAnalysisService(
+            db_session, storage=object_storage
+        ).queue_registered_document(document_id=parsed_document_id)
+        if get_settings().openai_api_key:
+            try:
+                enqueue_relationship_analysis(parsed_document_id)
+            except Exception:
+                logger.warning(
+                    "Relationship analysis remains queued because broker dispatch failed.",
+                    exc_info=True,
+                )
+        else:
+            logger.warning(
+                "Relationship analysis remains queued because OPENAI_API_KEY is not configured."
+            )
 
     return DocumentService.to_response(document)

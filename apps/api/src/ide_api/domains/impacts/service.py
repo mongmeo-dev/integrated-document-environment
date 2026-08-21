@@ -3,7 +3,11 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ide_api.domains.impacts.models import DocumentImpact, DocumentRelationship
+from ide_api.domains.impacts.models import (
+    DocumentImpact,
+    DocumentRelationship,
+    RelationshipAnalysisRun,
+)
 from ide_api.domains.impacts.repository import ImpactRepository
 from ide_api.domains.impacts.schemas import (
     CandidateStatus,
@@ -18,6 +22,10 @@ class DocumentRelationshipNotFoundError(Exception):
 
 
 class DocumentImpactNotFoundError(Exception):
+    pass
+
+
+class RelationshipAnalysisRunNotFoundError(Exception):
     pass
 
 
@@ -74,6 +82,16 @@ class ImpactService:
             relationships=relationships,
             impacts=impacts,
         )
+
+    async def get_latest_analysis_run(
+        self, *, document_id: UUID
+    ) -> RelationshipAnalysisRun:
+        run = await self._repository.get_latest_analysis_run(
+            source_document_id=document_id
+        )
+        if run is None:
+            raise RelationshipAnalysisRunNotFoundError
+        return run
 
     async def confirm_relationship(
         self, *, relationship_id: UUID, decided_by_id: UUID

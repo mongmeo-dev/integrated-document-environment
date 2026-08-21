@@ -19,6 +19,7 @@ class CompletionBlockingCode(StrEnum):
     PENDING_CHANGE_REQUESTS = "pending_change_requests"
     PENDING_CHANGE_PROPOSALS = "pending_change_proposals"
     PENDING_RELATIONSHIP_CANDIDATES = "pending_relationship_candidates"
+    PENDING_RELATIONSHIP_ANALYSES = "pending_relationship_analyses"
     PENDING_IMPACT_CANDIDATES = "pending_impact_candidates"
     PENDING_EVIDENCE_CANDIDATES = "pending_evidence_candidates"
     STALE_EVIDENCE = "stale_evidence"

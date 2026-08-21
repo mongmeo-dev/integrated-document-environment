@@ -15,9 +15,13 @@ from ide_api.domains.approvals.models import ApprovalStep, ApprovalWorkflow
 from ide_api.domains.auth.models import User
 from ide_api.domains.changes.models import ChangeProposal, ChangeRequest
 from ide_api.domains.completion import router as completion_router
-from ide_api.domains.documents.models import Document
+from ide_api.domains.documents.models import Document, DocumentVersion
 from ide_api.domains.evidence.models import DocumentEvidenceLink, EvidenceItem
-from ide_api.domains.impacts.models import DocumentImpact, DocumentRelationship
+from ide_api.domains.impacts.models import (
+    DocumentImpact,
+    DocumentRelationship,
+    RelationshipAnalysisRun,
+)
 from ide_api.domains.latex.models import LatexRevision
 
 
@@ -77,6 +81,28 @@ async def _create_document(
         )
         session.add_all([document, revision, workflow, step])
         if with_open_gates:
+            original = b"\\documentclass{article}\\begin{document}Gate\\end{document}"
+            version = DocumentVersion(
+                id=uuid4(),
+                document_id=document.id,
+                original_filename="gate.tex",
+                media_type="text/x-tex",
+                size_bytes=len(original),
+                sha256=sha256(original).hexdigest(),
+                object_key=f"private/original-{uuid4()}.tex",
+                created_by_id=user_id,
+                status="ready",
+                input_kind="latex_project",
+            )
+            session.add(version)
+            await session.flush()
+            analysis_run = RelationshipAnalysisRun(
+                id=uuid4(),
+                source_document_id=document.id,
+                source_document_version_id=version.id,
+                status="queued",
+                prompt_version="relationship-analysis-v1",
+            )
             request = ChangeRequest(
                 id=uuid4(),
                 document_id=document.id,
@@ -123,7 +149,17 @@ async def _create_document(
                 freshness="stale",
                 reason="Candidate",
             )
-            session.add_all([request, proposal, relationship, impact, evidence, evidence_link])
+            session.add_all(
+                [
+                    analysis_run,
+                    request,
+                    proposal,
+                    relationship,
+                    impact,
+                    evidence,
+                    evidence_link,
+                ]
+            )
         await session.commit()
         return document.id, revision.id
 
@@ -207,11 +243,18 @@ def test_completion_requires_reviewed_latest_compiled_latex(
         "pending_change_requests",
         "pending_change_proposals",
         "pending_relationship_candidates",
+        "pending_relationship_analyses",
         "pending_impact_candidates",
         "pending_evidence_candidates",
         "stale_evidence",
         "approval_steps_incomplete",
     } <= _codes(gated)
+    analysis_status = client.get(
+        f"/api/v1/impacts/documents/{gated_document_id}/analysis"
+    )
+    assert analysis_status.status_code == 200
+    assert analysis_status.json()["status"] == "queued"
+    assert analysis_status.json()["prompt_version"] == "relationship-analysis-v1"
     assert (
         client.post(
             "/api/v1/completion",

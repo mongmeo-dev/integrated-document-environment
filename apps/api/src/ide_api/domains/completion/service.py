@@ -75,6 +75,11 @@ class CompletionService:
         )
         self._add_count(
             reasons,
+            CompletionBlockingCode.PENDING_RELATIONSHIP_ANALYSES,
+            counts.pending_relationship_analyses,
+        )
+        self._add_count(
+            reasons,
             CompletionBlockingCode.PENDING_IMPACT_CANDIDATES,
             counts.pending_impact_candidates,
         )

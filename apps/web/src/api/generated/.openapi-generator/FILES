@@ -70,6 +70,8 @@ docs/LatexSourceRevisionCreate.md
 docs/LocationInner.md
 docs/LoginRequest.md
 docs/OriginalFileResponse.md
+docs/RelationshipAnalysisRunResponse.md
+docs/RelationshipAnalysisStatus.md
 docs/RelationshipType.md
 docs/RevisionOrigin.md
 docs/SystemApi.md
